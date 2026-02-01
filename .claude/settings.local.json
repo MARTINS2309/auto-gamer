@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ollama:*)",
+      "Bash(./venv/Scripts/pip install:*)",
+      "Bash(.\\\\venv\\\\Scripts\\\\pip.exe install:*)",
+      "Bash(\"C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe\" pull minicpm-v)",
+      "Bash(\"C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe\" pull llama3.2-vision:11b)",
+      "Bash(\"C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe\" pull qwen2.5vl:3b)",
+      "Bash(powershell.exe -Command:*)"
+    ]
+  }
+}
