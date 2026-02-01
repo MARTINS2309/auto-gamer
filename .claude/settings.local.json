@@ -7,7 +7,22 @@
       "Bash(\"C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe\" pull minicpm-v)",
       "Bash(\"C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe\" pull llama3.2-vision:11b)",
       "Bash(\"C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe\" pull qwen2.5vl:3b)",
-      "Bash(powershell.exe -Command:*)"
+      "Bash(powershell.exe -Command:*)",
+      "Bash(C:/Users/marti/AppData/Local/Programs/Ollama/ollama.exe list)",
+      "Bash(c:/Users/marti/source/auto-gamer/venv/Scripts/python.exe benchmark_models.py --runs 3)",
+      "WebFetch(domain:www.mobygames.com)",
+      "Bash(c:/Users/marti/source/auto-gamer/venv/Scripts/python.exe:*)",
+      "Bash(./venv/Scripts/python.exe:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(dir /b c:Usersmartisourceauto-gamer*.py)",
+      "Bash(python app.py:*)",
+      "WebFetch(domain:mgba.io)",
+      "Bash(python:*)",
+      "Bash(taskkill:*)",
+      "Bash(\"c:/Users/marti/source/auto-gamer/mGBA/mGBA.exe\" --help)",
+      "WebFetch(domain:github.com)",
+      "Bash(timeout:*)",
+      "Bash(wc:*)"
     ]
   }
 }
