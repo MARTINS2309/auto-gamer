@@ -1,5 +1,34 @@
-/docs
-/venv
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Python
 __pycache__/
-/mGBA*
-/data
+*.py[cod]
+*.so
+.venv/
+venv/
+.env
+*.egg-info/
+
+# Build
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Data & Runtime
+/data/
+
+# Packages (external repos)
+/packages/stable-retro/
+/packages/roms/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

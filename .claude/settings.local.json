@@ -22,7 +22,23 @@
       "Bash(\"c:/Users/marti/source/auto-gamer/mGBA/mGBA.exe\" --help)",
       "WebFetch(domain:github.com)",
       "Bash(timeout:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "WebFetch(domain:datacrystal.tcrf.net)",
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(/home/martins/code/auto-gamer/packages/mGBA/mgba-sdl:*)",
+      "Bash(/home/martins/code/auto-gamer/packages/mGBA/mGBA:*)",
+      "Bash(/home/martins/code/auto-gamer/packages/mGBA/mgba:*)",
+      "Bash(./mGBA.AppImage:*)",
+      "Bash(chmod:*)",
+      "Bash(source:*)",
+      "Bash(grep:*)",
+      "Bash(pnpm eslint:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }

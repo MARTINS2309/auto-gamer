@@ -1,0 +1,655 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Hard offset shadows - brutalist style (references mode-aware vars) */
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CRT BRUTALIST THEME — OKLCH Color Space
+
+   Hue anchors:
+   - Phosphor green: H=155 (cooler, more CRT-like)
+   - Amber/gold: H=80
+   - Red: H=25
+   - Void blue: H=265
+
+   Lightness relationships:
+   - Light mode: backgrounds L=0.96-0.93, semantics L=0.40-0.50
+   - Dark mode: backgrounds L=0.12-0.20, semantics L=0.65-0.72
+   - Borders: softer brutalist (L=0.35 light, L=0.70 dark)
+
+   Chroma strategy:
+   - Structural: near-neutral C≤0.01
+   - Semantic: moderate C=0.10-0.18
+   - Charts: vivid C=0.15-0.20
+   ═══════════════════════════════════════════════════════════ */
+
+/* LIGHT MODE — Aged paper, muted ink */
+:root {
+  --radius: 0px;
+
+  /* Brutalist shadows - hard offset, softer opacity */
+  --shadow-2xs: 3px 3px 0px 0px oklch(0.20 0.01 155 / 0.35);
+  --shadow-xs: 3px 3px 0px 0px oklch(0.20 0.01 155 / 0.45);
+  --shadow-sm: 3px 3px 0px 0px oklch(0.20 0.01 155 / 0.55);
+  --shadow: 4px 4px 0px 0px oklch(0.20 0.01 155 / 0.55);
+  --shadow-md: 4px 4px 0px 0px oklch(0.20 0.01 155 / 0.6);
+  --shadow-lg: 4px 4px 0px 0px oklch(0.20 0.01 155 / 0.65);
+  --shadow-xl: 5px 5px 0px 0px oklch(0.20 0.01 155 / 0.7);
+  --shadow-2xl: 6px 6px 0px 0px oklch(0.20 0.01 155 / 0.75);
+
+  /* Structural — aged paper (warm neutral, low chroma) */
+  --background: oklch(0.965 0.008 85);
+  --foreground: oklch(0.20 0.015 155);
+  --card: oklch(0.935 0.006 85);
+  --card-foreground: oklch(0.20 0.015 155);
+  --popover: oklch(0.945 0.006 85);
+  --popover-foreground: oklch(0.20 0.015 155);
+  --sidebar: oklch(0.925 0.008 85);
+  --sidebar-foreground: oklch(0.20 0.015 155);
+
+  /* Primary — muted phosphor green (forest ink) */
+  --primary: oklch(0.40 0.10 155);
+  --primary-foreground: oklch(0.96 0.006 85);
+  /* Secondary — warm stone */
+  --secondary: oklch(0.88 0.012 80);
+  --secondary-foreground: oklch(0.30 0.015 155);
+  /* Destructive — terracotta red */
+  --destructive: oklch(0.50 0.16 25);
+  --destructive-foreground: oklch(0.96 0.006 85);
+  /* Muted — soft gray */
+  --muted: oklch(0.91 0.006 80);
+  --muted-foreground: oklch(0.45 0.012 155);
+  /* Accent — warm amber */
+  --accent: oklch(0.90 0.05 80);
+  --accent-foreground: oklch(0.32 0.08 75);
+
+  /* Utility — softer brutalist border */
+  --border: oklch(0.35 0.015 155);
+  --input: oklch(0.60 0.02 155);
+  --ring: oklch(0.40 0.10 155);
+
+  /* Charts — balanced luminance L≈0.48-0.55 */
+  --chart-1: oklch(0.48 0.14 155);
+  --chart-2: oklch(0.52 0.16 25);
+  --chart-3: oklch(0.58 0.14 80);
+  --chart-4: oklch(0.50 0.12 235);
+  --chart-5: oklch(0.50 0.12 305);
+
+  /* Sidebar */
+  --sidebar-primary: oklch(0.40 0.10 155);
+  --sidebar-primary-foreground: oklch(0.96 0.006 85);
+  --sidebar-accent: oklch(0.90 0.05 80);
+  --sidebar-accent-foreground: oklch(0.32 0.08 75);
+  --sidebar-border: oklch(0.35 0.015 155);
+  --sidebar-ring: oklch(0.40 0.10 155);
+}
+
+/* DARK MODE — CRT void, phosphor glow */
+.dark {
+  /* Shadows — phosphor green glow (softer, more atmospheric) */
+  --shadow-2xs: 3px 3px 0px 0px oklch(0.68 0.16 155 / 0.12);
+  --shadow-xs: 3px 3px 0px 0px oklch(0.68 0.16 155 / 0.15);
+  --shadow-sm: 3px 3px 0px 0px oklch(0.68 0.16 155 / 0.18);
+  --shadow: 4px 4px 0px 0px oklch(0.68 0.16 155 / 0.20);
+  --shadow-md: 4px 4px 0px 0px oklch(0.68 0.16 155 / 0.22);
+  --shadow-lg: 4px 4px 0px 0px oklch(0.68 0.16 155 / 0.25);
+  --shadow-xl: 5px 5px 0px 0px oklch(0.68 0.16 155 / 0.28);
+  --shadow-2xl: 6px 6px 0px 0px oklch(0.68 0.16 155 / 0.35);
+
+  /* Structural — CRT void (deep blue-black) */
+  --background: oklch(0.12 0.015 265);
+  --foreground: oklch(0.86 0.025 155);
+  --card: oklch(0.18 0.012 265);
+  --card-foreground: oklch(0.86 0.025 155);
+  --popover: oklch(0.16 0.012 265);
+  --popover-foreground: oklch(0.86 0.025 155);
+  --sidebar: oklch(0.10 0.015 265);
+  --sidebar-foreground: oklch(0.86 0.025 155);
+
+  /* Primary — bright phosphor green (L+0.28 vs light) */
+  --primary: oklch(0.68 0.16 155);
+  --primary-foreground: oklch(0.12 0.015 265);
+  /* Secondary — terminal gray */
+  --secondary: oklch(0.25 0.012 265);
+  --secondary-foreground: oklch(0.78 0.02 155);
+  /* Destructive — CRT scan red (L+0.15 vs light) */
+  --destructive: oklch(0.62 0.20 25);
+  --destructive-foreground: oklch(0.12 0.015 265);
+  /* Muted — dark gray */
+  --muted: oklch(0.20 0.008 265);
+  --muted-foreground: oklch(0.55 0.015 155);
+  /* Accent — amber glow */
+  --accent: oklch(0.35 0.10 80);
+  --accent-foreground: oklch(0.90 0.08 80);
+
+  /* Utility — softer brutalist border (not pure foreground) */
+  --border: oklch(0.70 0.04 155);
+  --input: oklch(0.22 0.01 265);
+  --ring: oklch(0.68 0.16 155);
+
+  /* Charts — vivid, balanced L≈0.65-0.70 */
+  --chart-1: oklch(0.68 0.16 155);
+  --chart-2: oklch(0.62 0.20 25);
+  --chart-3: oklch(0.70 0.14 80);
+  --chart-4: oklch(0.62 0.14 235);
+  --chart-5: oklch(0.62 0.14 305);
+
+  /* Sidebar */
+  --sidebar-primary: oklch(0.68 0.16 155);
+  --sidebar-primary-foreground: oklch(0.12 0.015 265);
+  --sidebar-accent: oklch(0.35 0.10 80);
+  --sidebar-accent-foreground: oklch(0.90 0.08 80);
+  --sidebar-border: oklch(0.70 0.04 155);
+  --sidebar-ring: oklch(0.68 0.16 155);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE LAYER — Typography, borders, scrollbars
+   ═══════════════════════════════════════════════════════════ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    line-height: 1.5;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    letter-spacing: 0.03em;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 0;
+    background: hsl(var(--muted));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REDUCED MOTION
+   Toggle all animations off via body.reduce-motion
+   ═══════════════════════════════════════════════════════════ */
+body.reduce-motion,
+body.reduce-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.force-motion),
+  body:not(.force-motion) * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CRT OVERLAY SYSTEM
+   Three fixed layers over the entire app:
+   1. Scanlines — horizontal line pattern
+   2. Vignette  — darkened edges like curved CRT tube
+   3. Glow bar  — bright band drifting down the screen
+
+   Toggle via body.crt-enabled
+   ═══════════════════════════════════════════════════════════ */
+@layer components {
+
+  /* Container — fixed fullscreen, above content */
+  .crt-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+    display: none;
+  }
+  body.crt-enabled .crt-overlay {
+    display: block;
+  }
+
+  /* Layer 1: Phosphor mask pattern
+     Real CRTs use shadow mask (offset dot triads) or aperture grille (vertical stripes).
+     This simulates a shadow mask with offset phosphor dots. */
+  .crt-scanlines {
+    position: absolute;
+    inset: -4px;
+    /* Shadow mask: staggered dot pattern using layered radial gradients */
+    background:
+      /* Row 1: dots */
+      radial-gradient(ellipse 1.5px 2px at 0px 0px, oklch(0 0 0 / 0.035) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 3px 0px, oklch(0 0 0 / 0.035) 50%, transparent 50%),
+      /* Row 2: offset by half */
+      radial-gradient(ellipse 1.5px 2px at 1.5px 3px, oklch(0 0 0 / 0.035) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 4.5px 3px, oklch(0 0 0 / 0.035) 50%, transparent 50%),
+      /* Horizontal scanline for beam sweep */
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        oklch(0 0 0 / 0.02) 2px,
+        oklch(0 0 0 / 0.02) 3px
+      );
+    background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px, 100% 6px;
+    animation: crt-flicker 8s steps(1) infinite, crt-jitter 0.12s steps(3) infinite;
+  }
+  .dark .crt-scanlines {
+    background:
+      /* Phosphor dots - greenish tint in dark mode */
+      radial-gradient(ellipse 1.5px 2px at 0px 0px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 3px 0px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 1.5px 3px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 4.5px 3px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
+      /* Scanline */
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        oklch(1 0 0 / 0.015) 2px,
+        oklch(1 0 0 / 0.015) 3px
+      );
+    background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px, 100% 6px;
+  }
+
+  @keyframes crt-flicker {
+    0%   { opacity: 0.92; }
+    3%   { opacity: 1; }
+    6%   { opacity: 0.88; }
+    9%   { opacity: 1; }
+    42%  { opacity: 1; }
+    44%  { opacity: 0.94; }
+    46%  { opacity: 1; }
+    78%  { opacity: 1; }
+    80%  { opacity: 0.90; }
+    82%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes crt-jitter {
+    0%   { transform: translate(0px, 0px); }
+    33%  { transform: translate(0.5px, 1px); }
+    66%  { transform: translate(-0.5px, 0px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  /* Layer 2: Vignette */
+  .crt-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 80% 70% at 50% 50%,
+      transparent 50%,
+      oklch(0 0 0 / 0.15) 80%,
+      oklch(0 0 0 / 0.4) 100%
+    );
+  }
+
+  /* Layer 3: Glow bar — phosphor green sweep */
+  .crt-glow-bar {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      oklch(0.40 0.10 155 / 0.015) 48%,
+      oklch(0.40 0.10 155 / 0.05) 50%,
+      oklch(0.40 0.10 155 / 0.015) 52%,
+      transparent 100%
+    );
+    background-size: 100% 300%;
+    animation: crt-glow-sweep 10s linear infinite;
+  }
+  .dark .crt-glow-bar {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      oklch(0.68 0.16 155 / 0.02) 48%,
+      oklch(0.68 0.16 155 / 0.06) 50%,
+      oklch(0.68 0.16 155 / 0.02) 52%,
+      transparent 100%
+    );
+    background-size: 100% 300%;
+  }
+
+  @keyframes crt-glow-sweep {
+    /* fast approach (off-screen) */
+    0%   { background-position: 0% -50%; }
+    8%   { background-position: 0% 20%; }
+    /* ease-in as bar enters viewport */
+    15%  { background-position: 0% 35%; }
+    22%  { background-position: 0% 55%; }
+    /* micro-stutter */
+    28%  { background-position: 0% 72%; }
+    29%  { background-position: 0% 72%; }
+    30%  { background-position: 0% 78%; }
+    /* accelerate through center */
+    45%  { background-position: 0% 105%; }
+    /* another brief catch */
+    55%  { background-position: 0% 128%; }
+    56%  { background-position: 0% 128%; }
+    57%  { background-position: 0% 134%; }
+    /* ease-out as bar exits viewport */
+    70%  { background-position: 0% 155%; }
+    80%  { background-position: 0% 175%; }
+    /* fast departure (off-screen) */
+    92%  { background-position: 0% 220%; }
+    100% { background-position: 0% 250%; }
+  }
+
+  /* Table density */
+  .table-dense th,
+  .table-dense td {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE TRANSITION ANIMATIONS
+   CRT signal metaphor: old signal drops out, new one locks in
+   ═══════════════════════════════════════════════════════════ */
+@layer utilities {
+
+  /* Page enter: signal lock */
+  @keyframes page-enter {
+    0% {
+      transform: scaleY(0.005) scaleX(0.98);
+      opacity: 0;
+      filter: brightness(2.5);
+    }
+    30% {
+      transform: scaleY(0.5) scaleX(1);
+      opacity: 0.7;
+      filter: brightness(1.4);
+    }
+    60% {
+      transform: scaleY(0.95) scaleX(1);
+      opacity: 0.95;
+      filter: brightness(1.1);
+    }
+    100% {
+      transform: scaleY(1) scaleX(1);
+      opacity: 1;
+      filter: brightness(1);
+    }
+  }
+  .animate-page-enter {
+    animation: page-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: center center;
+  }
+
+  /* Page exit: signal drop */
+  @keyframes page-exit {
+    0% {
+      transform: scaleY(1) scaleX(1);
+      opacity: 1;
+      filter: brightness(1);
+    }
+    50% {
+      transform: scaleY(0.3) scaleX(1);
+      opacity: 0.6;
+      filter: brightness(1.6);
+    }
+    100% {
+      transform: scaleY(0.005) scaleX(0.95);
+      opacity: 0;
+      filter: brightness(3);
+    }
+  }
+  .animate-page-exit {
+    animation: page-exit 0.2s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+    transform-origin: center center;
+  }
+
+  /* Fast variant for tab switches */
+  .animate-page-enter-fast {
+    animation: page-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: center center;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENT-LEVEL TRANSITIONS
+   Smaller CRT-flavoured animations for elements
+   ═══════════════════════════════════════════════════════════ */
+@layer utilities {
+
+  /* Status pulse (running indicators) */
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .animate-live {
+    animation: pulse-live 2s ease-in-out infinite;
+  }
+
+  /* Card/element mount: phosphor warmup */
+  @keyframes phosphor-in {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+      filter: brightness(2);
+    }
+    40% {
+      opacity: 0.8;
+      filter: brightness(1.3);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: brightness(1);
+    }
+  }
+  .animate-phosphor-in {
+    animation: phosphor-in 0.3s ease-out forwards;
+  }
+
+  /* Staggered children */
+  .stagger-children > * {
+    opacity: 0;
+    animation: phosphor-in 0.3s ease-out forwards;
+  }
+  .stagger-children > *:nth-child(1)  { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2)  { animation-delay: 40ms; }
+  .stagger-children > *:nth-child(3)  { animation-delay: 80ms; }
+  .stagger-children > *:nth-child(4)  { animation-delay: 120ms; }
+  .stagger-children > *:nth-child(5)  { animation-delay: 160ms; }
+  .stagger-children > *:nth-child(6)  { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(7)  { animation-delay: 240ms; }
+  .stagger-children > *:nth-child(8)  { animation-delay: 280ms; }
+  .stagger-children > *:nth-child(9)  { animation-delay: 320ms; }
+  .stagger-children > *:nth-child(10) { animation-delay: 360ms; }
+  .stagger-children > *:nth-child(n+11) { animation-delay: 400ms; }
+
+  /* Sheet/panel slide-in */
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      filter: brightness(1.5);
+    }
+    to {
+      transform: translateX(0);
+      filter: brightness(1);
+    }
+  }
+  .animate-slide-in-right {
+    animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Dialog/modal: CRT power-on */
+  @keyframes dialog-enter {
+    0% {
+      transform: scaleY(0.01) scaleX(0.7);
+      opacity: 0;
+      filter: brightness(3);
+    }
+    50% {
+      transform: scaleY(0.8) scaleX(1);
+      opacity: 0.9;
+      filter: brightness(1.2);
+    }
+    100% {
+      transform: scaleY(1) scaleX(1);
+      opacity: 1;
+      filter: brightness(1);
+    }
+  }
+  .animate-dialog-enter {
+    animation: dialog-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: center center;
+  }
+
+  /* Dialog exit: CRT power-off */
+  @keyframes dialog-exit {
+    0% {
+      transform: scaleY(1) scaleX(1);
+      opacity: 1;
+      filter: brightness(1);
+    }
+    60% {
+      transform: scaleY(0.2) scaleX(1);
+      opacity: 0.5;
+      filter: brightness(2);
+    }
+    100% {
+      transform: scaleY(0) scaleX(0.3);
+      opacity: 0;
+      filter: brightness(4);
+    }
+  }
+  .animate-dialog-exit {
+    animation: dialog-exit 0.15s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+    transform-origin: center center;
+  }
+
+  /* Toast: signal blip */
+  @keyframes toast-in {
+    0% {
+      transform: translateX(30px);
+      opacity: 0;
+      filter: brightness(2);
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+      filter: brightness(1);
+    }
+  }
+  .animate-toast-in {
+    animation: toast-in 0.2s ease-out;
+  }
+
+  /* Chart draw-in: left-to-right reveal */
+  @keyframes chart-trace {
+    0% {
+      clip-path: inset(0 100% 0 0);
+    }
+    100% {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  .animate-chart-trace {
+    animation: chart-trace 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Interference glitch — one-shot */
+  @keyframes interference {
+    0%   { transform: translate(0, 0); filter: none; }
+    10%  { transform: translate(-3px, 0); filter: hue-rotate(40deg); }
+    20%  { transform: translate(2px, 1px); filter: hue-rotate(-30deg); }
+    30%  { transform: translate(-1px, -1px); filter: hue-rotate(20deg) saturate(1.5); }
+    40%  { transform: translate(3px, 0); filter: hue-rotate(-15deg); }
+    50%  { transform: translate(0, 0); filter: none; }
+    100% { transform: translate(0, 0); filter: none; }
+  }
+  .animate-glitch {
+    animation: interference 0.4s ease-out;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════ */
+@layer utilities {
+  .text-mono-xs {
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+  }
+  .text-mono-sm {
+    font-size: 1.1rem;
+  }
+  .tracking-stat {
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+}
