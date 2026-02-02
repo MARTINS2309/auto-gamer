@@ -7,6 +7,7 @@ import { z } from "zod"
 export const RunStatusSchema = z.enum([
   "pending",
   "running",
+  "paused",
   "completed",
   "failed",
   "stopped",
@@ -44,30 +45,71 @@ export type RomImportResponse = z.infer<typeof RomImportResponseSchema>
 // Run Schemas
 // =============================================================================
 
+// Hyperparams schema matching backend defaults
+export const RunHyperparamsSchema = z.object({
+  learning_rate: z.number().default(0.0003),
+  n_steps: z.number().default(2048),
+  batch_size: z.number().default(64),
+  n_epochs: z.number().default(10),
+  gamma: z.number().default(0.99),
+  clip_range: z.number().default(0.2),
+  ent_coef: z.number().default(0.0),
+  vf_coef: z.number().default(0.5),
+  max_grad_norm: z.number().default(0.5),
+})
+export type RunHyperparams = z.infer<typeof RunHyperparamsSchema>
+
+// Run response schema matching backend RunResponse
 export const RunSchema = z.object({
   id: z.string(),
-  rom_id: z.string(),
-  rom_name: z.string(),
+  rom: z.string(),
   state: z.string(),
   algorithm: z.string(),
+  hyperparams: RunHyperparamsSchema,
+  n_envs: z.number(),
+  max_steps: z.number(),
+  checkpoint_interval: z.number(),
+  frame_capture_interval: z.number(),
+  reward_shaping: z.string(),
+  observation_type: z.string(),
+  action_space: z.string(),
   status: RunStatusSchema,
-  steps: z.number(),
-  best_reward: z.number(),
-  avg_reward: z.number(),
-  fps: z.number(),
   created_at: z.string(),
   started_at: z.string().nullable().optional(),
   completed_at: z.string().nullable().optional(),
+  pid: z.number().nullable().optional(),
   error: z.string().nullable().optional(),
 })
 export type Run = z.infer<typeof RunSchema>
 
 export const RunListSchema = z.array(RunSchema)
 
+// Default hyperparams values
+const DEFAULT_HYPERPARAMS = {
+  learning_rate: 0.0003,
+  n_steps: 2048,
+  batch_size: 64,
+  n_epochs: 10,
+  gamma: 0.99,
+  clip_range: 0.2,
+  ent_coef: 0.0,
+  vf_coef: 0.5,
+  max_grad_norm: 0.5,
+}
+
+// Run creation schema matching backend RunCreate/RunConfig
 export const RunCreateSchema = z.object({
-  rom_id: z.string().min(1, "ROM is required"),
+  rom: z.string().min(1, "ROM is required"),
   state: z.string().min(1, "State is required"),
-  algorithm: z.string().optional(),
+  algorithm: z.string().default("PPO"),
+  hyperparams: RunHyperparamsSchema.default(DEFAULT_HYPERPARAMS),
+  n_envs: z.number().default(1),
+  max_steps: z.number().default(1_000_000),
+  checkpoint_interval: z.number().default(50_000),
+  frame_capture_interval: z.number().default(10_000),
+  reward_shaping: z.string().default("default"),
+  observation_type: z.string().default("image"),
+  action_space: z.string().default("filtered"),
 })
 export type RunCreate = z.infer<typeof RunCreateSchema>
 
@@ -119,6 +161,7 @@ export const RUN_STATUS_VARIANTS: Record<
   "default" | "secondary" | "destructive" | "outline"
 > = {
   running: "default",
+  paused: "secondary",
   completed: "secondary",
   failed: "destructive",
   stopped: "outline",

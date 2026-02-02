@@ -14,7 +14,7 @@ function runToActivity(run: Run): ActivityItem {
   return {
     id: run.id,
     status: run.status,
-    message: `${run.rom_name} - ${run.state}`,
+    message: `${run.rom} - ${run.state}`,
     time: run.started_at || run.created_at,
   }
 }

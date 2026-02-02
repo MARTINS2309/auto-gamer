@@ -34,7 +34,7 @@ export function useRunsByRom(romId: string | null, limit = 5) {
   const { data: runs = [] } = useRuns()
 
   return romId
-    ? runs.filter((r) => r.rom_id === romId).slice(0, limit)
+    ? runs.filter((r) => r.rom === romId).slice(0, limit)
     : []
 }
 
@@ -149,12 +149,11 @@ export function useRunMetrics(
   const wsRef = useRef<WebSocket | null>(null)
   const [metrics, setMetrics] = useState<RunMetrics | null>(null)
   const [history, setHistory] = useState<RunMetrics[]>([])
-  const [isConnected, setIsConnected] = useState(false)
+  const [wsIsOpen, setWsIsOpen] = useState(false)
 
   useEffect(() => {
     if (!isRunning) {
       wsRef.current?.close()
-      setIsConnected(false)
       return
     }
 
@@ -180,20 +179,22 @@ export function useRunMetrics(
       },
       onConnectionError: () => {
         toast.error("WebSocket connection lost")
-        setIsConnected(false)
       },
     }
 
     const ws = createRunWebSocket(runId, callbacks)
     wsRef.current = ws
 
-    ws.onopen = () => setIsConnected(true)
-    ws.onclose = () => setIsConnected(false)
+    ws.onopen = () => setWsIsOpen(true)
+    ws.onclose = () => setWsIsOpen(false)
 
     return () => {
       ws.close()
     }
   }, [runId, isRunning, queryClient])
+
+  // Derive isConnected: only connected when running AND websocket is open
+  const isConnected = isRunning && wsIsOpen
 
   return { metrics, history, isConnected }
 }
@@ -204,13 +205,14 @@ export function useRunMetrics(
 
 export function useRunStats(runs: Run[]) {
   const activeRuns = runs.filter((r) => r.status === "running")
-  const totalSteps = runs.reduce((acc, r) => acc + r.steps, 0)
-  const bestReward = runs.length > 0 ? Math.max(...runs.map((r) => r.best_reward)) : 0
+  const completedRuns = runs.filter((r) => r.status === "completed")
+  const failedRuns = runs.filter((r) => r.status === "failed")
 
   return {
+    total: runs.length,
     activeCount: activeRuns.length,
-    totalSteps,
-    bestReward,
+    completedCount: completedRuns.length,
+    failedCount: failedRuns.length,
     activeRuns,
   }
 }

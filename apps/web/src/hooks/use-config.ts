@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import type { Config, ConfigUpdate } from "@/lib/schemas"
@@ -43,35 +43,40 @@ export function useUpdateConfig() {
 // =============================================================================
 
 export function useConfigForm() {
-  const { data: config, isLoading } = useConfig()
+  const { data: config, isLoading, dataUpdatedAt } = useConfig()
   const updateConfig = useUpdateConfig()
-  const [formData, setFormData] = useState<ConfigUpdate>({})
-  const [isDirty, setIsDirty] = useState(false)
+  const [localOverrides, setLocalOverrides] = useState<ConfigUpdate>({})
+  const [lastSyncedAt, setLastSyncedAt] = useState(0)
 
-  // Sync form data with loaded config
-  useEffect(() => {
-    if (config) {
-      setFormData(config)
-      setIsDirty(false)
+  // Derive form data: use server data unless user has made local changes
+  const formData = useMemo(() => {
+    // If server data is newer than our last sync, reset to server data
+    if (dataUpdatedAt > lastSyncedAt && config) {
+      return config
     }
-  }, [config])
+    // Otherwise merge local overrides with server data
+    return { ...config, ...localOverrides }
+  }, [config, localOverrides, dataUpdatedAt, lastSyncedAt])
+
+  const isDirty = Object.keys(localOverrides).length > 0
 
   const handleChange = useCallback(<K extends keyof Config>(key: K, value: Config[K]) => {
-    setFormData((prev) => ({ ...prev, [key]: value }))
-    setIsDirty(true)
+    setLocalOverrides((prev) => ({ ...prev, [key]: value }))
   }, [])
 
   const handleSave = useCallback(() => {
-    updateConfig.mutate(formData as Config)
-    setIsDirty(false)
+    updateConfig.mutate(formData as Config, {
+      onSuccess: () => {
+        setLocalOverrides({})
+        setLastSyncedAt(Date.now())
+      },
+    })
   }, [updateConfig, formData])
 
   const handleReset = useCallback(() => {
-    if (config) {
-      setFormData(config)
-      setIsDirty(false)
-    }
-  }, [config])
+    setLocalOverrides({})
+    setLastSyncedAt(Date.now())
+  }, [])
 
   return {
     formData,

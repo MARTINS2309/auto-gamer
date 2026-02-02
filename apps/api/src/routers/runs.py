@@ -18,19 +18,26 @@ def get_run_or_404(run_id: str, db: Session) -> RunModel:
 @router.post("/runs", response_model=RunResponse)
 async def create_run(run_in: RunCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # Create DB entry
+    
+    # We should validate that the ROM and State actually exist before creating a run
+    # This matches the implied requirement of a robust system
+    try:
+        import stable_retro as retro
+        if run_in.rom not in retro.data.list_games():
+             raise HTTPException(status_code=400, detail=f"ROM '{run_in.rom}' not found in retro system")
+        if run_in.state and run_in.state not in retro.data.list_states(run_in.rom):
+             # Might be a custom state path? For now enforce retro states
+             # Check if it looks like a file path
+             if not (run_in.state.endswith('.state') or run_in.state == "Start"): # Start is implicit sometimes
+                raise HTTPException(status_code=400, detail=f"State '{run_in.state}' not found for this ROM")
+    except ImportError:
+        pass # Skip validation if retro not installed locally (e.g. testing)
+
     new_run = RunModel(
         id=str(uuid.uuid4()),
         status=RunStatus.PENDING.value,
-        **run_in.dict() # Dump schema to dict - Pydantic v1 usage, v2 prefers model_dump()
+        **run_in.model_dump()
     )
-    # Compatibility check (if user has pydantic v2)
-    if hasattr(run_in, "model_dump"):
-         # Re-create with clean dict
-         new_run = RunModel(
-            id=str(uuid.uuid4()),
-            status=RunStatus.PENDING.value,
-            **run_in.model_dump()
-        )
 
     db.add(new_run)
     db.commit()
@@ -38,7 +45,9 @@ async def create_run(run_in: RunCreate, background_tasks: BackgroundTasks, db: S
     
     # Start run in background (manager starts process)
     try:
-        config_dict = run_in.model_dump() if hasattr(run_in, "model_dump") else run_in.dict()
+        config_dict = run_in.model_dump()
+        # Ensure ID is passed for logging setup
+        config_dict['id'] = new_run.id 
         run_manager.start_run(new_run.id, config_dict)
     except Exception as e:
         new_run.status = RunStatus.FAILED.value
@@ -49,26 +58,64 @@ async def create_run(run_in: RunCreate, background_tasks: BackgroundTasks, db: S
     return new_run
 
 @router.get("/runs", response_model=List[RunResponse])
-async def list_runs(db: Session = Depends(get_db)):
-    return db.query(RunModel).order_by(RunModel.created_at.desc()).all()
+async def list_runs(
+    status: str = None, 
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """List runs with optional filtering."""
+    query = db.query(RunModel)
+    if status:
+        query = query.filter(RunModel.status == status)
+    
+    # Sort by created_at desc
+    query = query.order_by(RunModel.created_at.desc())
+    
+    return query.offset(skip).limit(limit).all()
 
 @router.get("/runs/{run_id}", response_model=RunResponse)
-async def get_run(run_id: str, db: Session = Depends(get_db)):
+async def get_run_details(run_id: str, db: Session = Depends(get_db)):
     return get_run_or_404(run_id, db)
+
+@router.delete("/runs/{run_id}", status_code=204)
+async def delete_run(run_id: str, db: Session = Depends(get_db)):
+    """Delete a run and its data."""
+    run = get_run_or_404(run_id, db)
+    
+    # Setup for model cleanup
+    import shutil
+    import os
+    
+    # If running, stop it first
+    if run.status == RunStatus.RUNNING.value:
+        run_manager.stop_run(run_id)
+    
+    # Delete from DB
+    db.delete(run)
+    db.commit()
+    
+    # Clean up file artifacts
+    try:
+        run_dir = f"./data/runs/{run_id}"
+        if os.path.exists(run_dir):
+            shutil.rmtree(run_dir)
+    except Exception as e:
+        print(f"Error cleaning up run directory: {e}")
+    
+    return None
+
+@router.post("/runs/{run_id}/resume")
+async def resume_run(run_id: str, db: Session = Depends(get_db)):
+    """Resume a paused run - not fully implemented in runner yet, essentially a restart or no-op."""
+    run = get_run_or_404(run_id, db)
+    # TODO: Implement resume logic in RunManager
+    # For now, just mark it as running if it was paused?
+    # SB3 doesn't support easy pause/resume without save/load cycle.
+    return {"message": "Resume not fully implemented yet"}
 
 @router.post("/runs/{run_id}/stop")
 async def stop_run(run_id: str, db: Session = Depends(get_db)):
     run = get_run_or_404(run_id, db)
     run_manager.stop_run(run_id)
     return {"status": "stopping"}
-
-@router.delete("/runs/{run_id}")
-async def delete_run(run_id: str, db: Session = Depends(get_db)):
-    run = get_run_or_404(run_id, db)
-    
-    if run.status == RunStatus.RUNNING.value:
-        run_manager.stop_run(run_id)
-        
-    db.delete(run)
-    db.commit()
-    return {"status": "deleted"}

@@ -1,7 +1,4 @@
-import { useState, useEffect, useRef } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useParams, useNavigate } from "@tanstack/react-router"
-import { api, createRunWebSocket, type Run, type RunMetrics } from "@/lib/api"
+import { useParams } from "@tanstack/react-router"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,117 +8,39 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Square, Trash2, Copy, ChevronDown, Zap, Trophy, TrendingUp, Clock, Activity, BarChart3 } from "lucide-react"
 import { formatDuration, intervalToDuration } from "date-fns"
 import { toast } from "sonner"
+import { useRun, useStopRun, useDeleteRun, useRunMetrics } from "@/hooks"
+import { StatusBadge, StatTile } from "@/components/shared"
+import type { RunMetrics } from "@/lib/schemas"
 
-function StatusBadge({ status }: { status: Run["status"] }) {
-  const variants: Record<Run["status"], "default" | "secondary" | "destructive" | "outline"> = {
-    running: "default",
-    completed: "secondary",
-    failed: "destructive",
-    stopped: "outline",
-    pending: "outline",
+function MetricsChart({ data, color, maxValue }: { data: number[]; color: string; maxValue?: number }) {
+  if (data.length === 0) {
+    return <span className="text-muted-foreground">No data yet</span>
   }
 
-  return (
-    <Badge
-      variant={variants[status]}
-      className={status === "running" ? "animate-live" : ""}
-    >
-      {status}
-    </Badge>
-  )
-}
+  const max = maxValue ?? (Math.max(...data) || 1)
 
-function StatTile({
-  label,
-  value,
-  subValue,
-  icon: Icon,
-  color,
-}: {
-  label: string
-  value: string | number
-  subValue?: string
-  icon: React.ElementType
-  color?: string
-}) {
   return (
-    <div className="flex items-center gap-3 p-4 border">
-      <Icon className={`size-5 ${color || "text-muted-foreground"}`} />
-      <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
-        <p className={`text-xl font-semibold ${color || ""}`}>{value}</p>
-        {subValue && <p className="text-xs text-muted-foreground">{subValue}</p>}
-      </div>
+    <div className="w-full h-full flex items-end gap-px">
+      {data.slice(-100).map((value, i) => (
+        <div
+          key={i}
+          className={`flex-1 ${color} min-w-px`}
+          style={{ height: `${Math.max(5, (value / max) * 100)}%` }}
+        />
+      ))}
     </div>
   )
 }
 
 export function RunDetailPage() {
   const { runId } = useParams({ from: "/runs/$runId" })
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const wsRef = useRef<WebSocket | null>(null)
 
-  const [liveMetrics, setLiveMetrics] = useState<RunMetrics | null>(null)
-  const [metricsHistory, setMetricsHistory] = useState<RunMetrics[]>([])
+  const { data: run, isLoading } = useRun(runId)
+  const stopRun = useStopRun()
+  const deleteRun = useDeleteRun()
 
-  const { data: run, isLoading } = useQuery({
-    queryKey: ["run", runId],
-    queryFn: () => api.runs.get(runId),
-    refetchInterval: (query) => {
-      const data = query.state.data
-      return data?.status === "running" ? false : 5000
-    },
-  })
-
-  const stopRun = useMutation({
-    mutationFn: () => api.runs.stop(runId),
-    onSuccess: () => {
-      toast.success("Run stopped")
-      queryClient.invalidateQueries({ queryKey: ["run", runId] })
-      queryClient.invalidateQueries({ queryKey: ["runs"] })
-    },
-  })
-
-  const deleteRun = useMutation({
-    mutationFn: () => api.runs.delete(runId),
-    onSuccess: () => {
-      toast.success("Run deleted")
-      queryClient.invalidateQueries({ queryKey: ["runs"] })
-      navigate({ to: "/runs" })
-    },
-  })
-
-  // WebSocket connection for live metrics
-  useEffect(() => {
-    if (run?.status !== "running") {
-      wsRef.current?.close()
-      return
-    }
-
-    const ws = createRunWebSocket(
-      runId,
-      (data) => {
-        if ("step" in data) {
-          setLiveMetrics(data as RunMetrics)
-          setMetricsHistory((prev) => [...prev.slice(-500), data as RunMetrics])
-        } else if (data.type === "status") {
-          queryClient.invalidateQueries({ queryKey: ["run", runId] })
-        } else if (data.type === "error") {
-          toast.error(`Run error: ${data.error}`)
-        }
-      },
-      () => {
-        toast.error("WebSocket connection lost")
-      }
-    )
-
-    wsRef.current = ws
-
-    return () => {
-      ws.close()
-    }
-  }, [runId, run?.status, queryClient])
+  const isRunning = run?.status === "running"
+  const { metrics: liveMetrics, history } = useRunMetrics(runId, isRunning)
 
   const copyId = () => {
     navigator.clipboard.writeText(runId)
@@ -144,12 +63,13 @@ export function RunDetailPage() {
     )
   }
 
-  const currentMetrics = liveMetrics || {
-    step: run.steps,
+  // Metrics come from WebSocket when running, otherwise show placeholder
+  const currentMetrics: RunMetrics = liveMetrics || {
+    step: 0,
     reward: 0,
-    avg_reward: run.avg_reward,
-    best_reward: run.best_reward,
-    fps: run.fps,
+    avg_reward: 0,
+    best_reward: 0,
+    fps: 0,
   }
 
   const elapsed = run.started_at
@@ -165,7 +85,7 @@ export function RunDetailPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{run.rom_name}</h1>
+            <h1 className="text-2xl font-semibold">{run.rom}</h1>
             <StatusBadge status={run.status} />
             <Badge variant="outline">{run.algorithm}</Badge>
           </div>
@@ -179,8 +99,12 @@ export function RunDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {run.status === "running" && (
-            <Button variant="outline" onClick={() => stopRun.mutate()} disabled={stopRun.isPending}>
+          {isRunning && (
+            <Button
+              variant="outline"
+              onClick={() => stopRun.mutate(runId)}
+              disabled={stopRun.isPending}
+            >
               <Square className="size-4" />
               Stop
             </Button>
@@ -201,7 +125,7 @@ export function RunDetailPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteRun.mutate()}>
+                <AlertDialogAction onClick={() => deleteRun.mutate(runId)}>
                   Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -246,7 +170,7 @@ export function RunDetailPage() {
       </div>
 
       {/* Progress */}
-      {run.status === "running" && (
+      {isRunning && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Training Progress</span>
@@ -256,26 +180,14 @@ export function RunDetailPage() {
         </div>
       )}
 
-      {/* Charts placeholder */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Episode Reward</CardTitle>
           </CardHeader>
-          <CardContent className="h-60 flex items-center justify-center text-muted-foreground">
-            {metricsHistory.length > 0 ? (
-              <div className="w-full h-full flex items-end gap-px">
-                {metricsHistory.slice(-100).map((m, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 bg-chart-1 min-w-px"
-                    style={{ height: `${Math.max(5, (m.reward / (Math.max(...metricsHistory.map(x => x.reward)) || 1)) * 100)}%` }}
-                  />
-                ))}
-              </div>
-            ) : (
-              "No data yet"
-            )}
+          <CardContent className="h-60 flex items-center justify-center">
+            <MetricsChart data={history.map((m) => m.reward)} color="bg-chart-1" />
           </CardContent>
         </Card>
 
@@ -283,20 +195,8 @@ export function RunDetailPage() {
           <CardHeader>
             <CardTitle className="text-sm">FPS Over Time</CardTitle>
           </CardHeader>
-          <CardContent className="h-60 flex items-center justify-center text-muted-foreground">
-            {metricsHistory.length > 0 ? (
-              <div className="w-full h-full flex items-end gap-px">
-                {metricsHistory.slice(-100).map((m, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 bg-chart-4 min-w-px"
-                    style={{ height: `${Math.max(5, (m.fps / 60) * 100)}%` }}
-                  />
-                ))}
-              </div>
-            ) : (
-              "No data yet"
-            )}
+          <CardContent className="h-60 flex items-center justify-center">
+            <MetricsChart data={history.map((m) => m.fps)} color="bg-chart-4" maxValue={60} />
           </CardContent>
         </Card>
       </div>
@@ -315,10 +215,12 @@ export function RunDetailPage() {
               <pre className="text-xs font-mono overflow-auto">
                 {JSON.stringify(
                   {
-                    rom_id: run.rom_id,
-                    rom_name: run.rom_name,
+                    rom: run.rom,
                     state: run.state,
                     algorithm: run.algorithm,
+                    hyperparams: run.hyperparams,
+                    max_steps: run.max_steps,
+                    n_envs: run.n_envs,
                     created_at: run.created_at,
                     started_at: run.started_at,
                   },

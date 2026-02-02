@@ -1,0 +1,5 @@
+{
+  "default_algorithm": "PPO",
+  "default_device": "cuda",
+  "storage_path": "./data"
+}

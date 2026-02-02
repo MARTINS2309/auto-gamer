@@ -35,8 +35,6 @@ export function ActiveRunsTable({ runs, isLoading, onStopRun }: ActiveRunsTableP
           <TableHead>ROM</TableHead>
           <TableHead>State</TableHead>
           <TableHead>Algorithm</TableHead>
-          <TableHead className="text-right">Steps</TableHead>
-          <TableHead className="text-right">FPS</TableHead>
           <TableHead></TableHead>
         </TableRow>
       </TableHeader>
@@ -49,18 +47,12 @@ export function ActiveRunsTable({ runs, isLoading, onStopRun }: ActiveRunsTableP
                 params={{ runId: run.id }}
                 className="hover:text-primary"
               >
-                {run.rom_name}
+                {run.rom}
               </Link>
             </TableCell>
             <TableCell className="text-muted-foreground">{run.state}</TableCell>
             <TableCell>
               <Badge variant="outline">{run.algorithm}</Badge>
-            </TableCell>
-            <TableCell className="text-right font-mono">
-              {run.steps.toLocaleString()}
-            </TableCell>
-            <TableCell className="text-right font-mono">
-              {run.fps.toFixed(1)}
             </TableCell>
             <TableCell>
               <Button

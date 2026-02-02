@@ -11,6 +11,8 @@ import {
   type Rom,
   type Run,
   type RunCreate,
+  type RunMetrics,
+  type RunStatus,
   type Config,
   type ConfigUpdate,
   type RomImportResponse,
@@ -28,13 +30,14 @@ const WS_BASE = API_BASE.replace(/^http/, "ws")
 // =============================================================================
 
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status?: number,
-    public code?: string
-  ) {
+  status?: number
+  code?: string
+
+  constructor(message: string, status?: number, code?: string) {
     super(message)
     this.name = "ApiError"
+    this.status = status
+    this.code = code
   }
 }
 
@@ -62,8 +65,8 @@ async function request<T>(
   } catch (err) {
     if (err instanceof ApiError) throw err
     if (err instanceof z.ZodError) {
-      console.error("API response validation failed:", err.errors)
-      throw new ApiError(`Invalid API response: ${err.errors[0]?.message}`)
+      console.error("API response validation failed:", err.issues)
+      throw new ApiError(`Invalid API response: ${err.issues[0]?.message}`)
     }
     if (err instanceof TypeError && err.message.includes("fetch")) {
       throw new ApiError("API server not available. Start the API with: pnpm dev:api", undefined, "NETWORK_ERROR")
@@ -120,11 +123,12 @@ export const api = {
 
     get: (id: string): Promise<Run> => request(`/api/runs/${id}`, RunSchema),
 
-    create: (data: RunCreate): Promise<Run> => {
-      RunCreateSchema.parse(data) // Validate input
+    create: (data: Partial<RunCreate> & { rom: string; state: string }): Promise<Run> => {
+      // Parse to validate and apply defaults
+      const validated = RunCreateSchema.parse(data)
       return request("/api/runs", RunSchema, {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify(validated),
       })
     },
 
@@ -155,8 +159,8 @@ export const api = {
 // =============================================================================
 
 export interface RunWebSocketCallbacks {
-  onMetrics?: (metrics: { step: number; reward: number; avg_reward: number; best_reward: number; fps: number; loss?: number; epsilon?: number }) => void
-  onStatus?: (status: string) => void
+  onMetrics?: (metrics: RunMetrics) => void
+  onStatus?: (status: RunStatus) => void
   onError?: (error: string) => void
   onConnectionError?: (event: Event) => void
 }
@@ -200,5 +204,5 @@ export function createRunWebSocket(
 // Re-exports
 // =============================================================================
 
-export type { Rom, Run, RunCreate, Config, ConfigUpdate, RomImportResponse }
+export type { Rom, Run, RunCreate, RunMetrics, RunStatus, Config, ConfigUpdate, RomImportResponse }
 export { ApiError as ApiClientError }
