@@ -43,39 +43,35 @@ export function useUpdateConfig() {
 // =============================================================================
 
 export function useConfigForm() {
-  const { data: config, isLoading, dataUpdatedAt } = useConfig()
+  const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
   const [localOverrides, setLocalOverrides] = useState<ConfigUpdate>({})
-  const [lastSyncedAt, setLastSyncedAt] = useState(0)
 
-  // Derive form data: use server data unless user has made local changes
+  // Derive form data: merge local overrides with server data
   const formData = useMemo(() => {
-    // If server data is newer than our last sync, reset to server data
-    if (dataUpdatedAt > lastSyncedAt && config) {
-      return config
-    }
-    // Otherwise merge local overrides with server data
+    if (!config) return (localOverrides as Config) || {}
     return { ...config, ...localOverrides }
-  }, [config, localOverrides, dataUpdatedAt, lastSyncedAt])
+  }, [config, localOverrides])
 
-  const isDirty = Object.keys(localOverrides).length > 0
+  const isDirty = useMemo(() => Object.keys(localOverrides).length > 0, [localOverrides])
 
   const handleChange = useCallback(<K extends keyof Config>(key: K, value: Config[K]) => {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }))
   }, [])
 
   const handleSave = useCallback(() => {
-    updateConfig.mutate(formData as Config, {
+    if (!config) return
+    // Ensure we send complete config
+    const merged = { ...config, ...localOverrides }
+    updateConfig.mutate(merged, {
       onSuccess: () => {
         setLocalOverrides({})
-        setLastSyncedAt(Date.now())
       },
     })
-  }, [updateConfig, formData])
+  }, [updateConfig, config, localOverrides])
 
   const handleReset = useCallback(() => {
     setLocalOverrides({})
-    setLastSyncedAt(Date.now())
   }, [])
 
   return {

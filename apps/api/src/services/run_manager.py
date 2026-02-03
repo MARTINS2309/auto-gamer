@@ -51,7 +51,7 @@ class RunManager:
             process = multiprocessing.Process(
                 target=training_worker,
                 args=(run_id, config, q),
-                daemon=True 
+                daemon=False 
             )
             process.start()
 
@@ -90,24 +90,46 @@ class RunManager:
             db.close()
 
     def _monitor_run(self, run_id: str, q: multiprocessing.Queue, process: multiprocessing.Process):
+        """Background thread to monitor queue from subprocess."""
+        print(f"[Monitor] Starting monitor thread for run {run_id}")
         db = SessionLocal()
+
+        # Setup metrics file
+        run_dir = f"./data/runs/{run_id}"
+        os.makedirs(run_dir, exist_ok=True)
+        metrics_file = os.path.join(run_dir, "metrics.jsonl")
+        print(f"[Monitor] Metrics file: {metrics_file}")
+
         try:
             while True:
-                # Check if process died unexpectedly
-                if not process.is_alive() and q.empty():
-                    break
+                # Check if process is alive
+                with self.lock:
+                    if run_id in self.active_runs:
+                        proc, _ = self.active_runs[run_id]
+                        if not proc.is_alive() and q.empty():
+                            # Clean exit double check
+                            break
+                    else:
+                        break # Removed from active
                 
                 try:
                     # Blocking get with timeout
                     # Note: multiprocessing.Queue.get raises queue.Empty
-                    msg = q.get(timeout=1.0) 
-                    
+                    msg = q.get(timeout=1.0)
+
                     msg_type = msg.get("type")
-                    
+                    print(f"[Monitor] Received message type={msg_type} for run {run_id}")
+
                     if msg_type == "metric":
+                         print(f"[Monitor] Broadcasting metric: step={msg.get('step')}, fps={msg.get('fps')}")
                          self._emit_event(run_id, msg)
-                         
-                         # TODO: Save to JSONL here if needed
+
+                         # Save to JSONL
+                         try:
+                             with open(metrics_file, "a") as f:
+                                 f.write(json.dumps(msg) + "\n")
+                         except Exception as e:
+                             print(f"[Monitor] Failed to save metric: {e}")
                          
                     elif msg_type == "status":
                         status = msg.get("status")
@@ -138,8 +160,20 @@ class RunManager:
             db.close()
             pass
 
+    def delete_run_data(self, run_id: str):
+        """Delete file artifacts for a run."""
+        import shutil
+        run_dir = f"./data/runs/{run_id}"
+        if os.path.exists(run_dir):
+            try:
+                shutil.rmtree(run_dir)
+            except Exception as e:
+                print(f"Error deleting run data {run_id}: {e}")
+
     def _emit_event(self, run_id: str, msg: dict):
         if self.loop and ws_manager:
             asyncio.run_coroutine_threadsafe(ws_manager.broadcast(run_id, msg), self.loop)
+        else:
+            print(f"[Monitor] Cannot emit event: loop={self.loop is not None}, ws_manager={ws_manager is not None}")
 
 manager = RunManager()

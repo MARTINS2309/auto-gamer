@@ -2,10 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
+import os
+import json
 
 from ..models.db import get_db, RunModel, RunStatus
-from ..models.schemas import RunCreate, RunResponse
+from ..models.schemas import RunCreate, RunResponse, MetricPoint
 from ..services.run_manager import manager as run_manager
+from .config import load_config
 
 router = APIRouter()
 
@@ -46,6 +49,11 @@ async def create_run(run_in: RunCreate, background_tasks: BackgroundTasks, db: S
     # Start run in background (manager starts process)
     try:
         config_dict = run_in.model_dump()
+        
+        # Inject global defaults
+        global_config = load_config()
+        config_dict['device'] = global_config.default_device
+        
         # Ensure ID is passed for logging setup
         config_dict['id'] = new_run.id 
         run_manager.start_run(new_run.id, config_dict)
@@ -114,8 +122,38 @@ async def resume_run(run_id: str, db: Session = Depends(get_db)):
     # SB3 doesn't support easy pause/resume without save/load cycle.
     return {"message": "Resume not fully implemented yet"}
 
-@router.post("/runs/{run_id}/stop")
+@router.post("/runs/{run_id}/stop", response_model=RunResponse)
 async def stop_run(run_id: str, db: Session = Depends(get_db)):
     run = get_run_or_404(run_id, db)
     run_manager.stop_run(run_id)
-    return {"status": "stopping"}
+    db.refresh(run)
+    return run
+
+@router.get("/{run_id}/metrics", response_model=List[MetricPoint])
+async def get_run_metrics(run_id: str, db: Session = Depends(get_db)):
+    """
+    Get historical metrics for a run.
+    """
+    run = db.query(RunModel).filter(RunModel.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+        
+    metrics_file = os.path.join("data", "runs", run_id, "metrics.jsonl")
+    
+    if not os.path.exists(metrics_file):
+        return []
+        
+    metrics = []
+    try:
+        with open(metrics_file, "r") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        metrics.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+    except Exception as e:
+        print(f"Error reading metrics for run {run_id}: {e}")
+        return []
+        
+    return metrics

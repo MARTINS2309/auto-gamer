@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api, createRunWebSocket, type RunWebSocketCallbacks } from "@/lib/api"
-import type { Run, RunCreate, RunMetrics } from "@/lib/schemas"
+import type { Run, RunCreateInput, RunMetrics } from "@/lib/schemas"
 import { toast } from "sonner"
+import { formatDuration, intervalToDuration } from "date-fns"
 import { useNavigate } from "@tanstack/react-router"
 
 export const runKeys = {
@@ -51,7 +52,7 @@ export function useCreateRun() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (data: RunCreate) => api.runs.create(data),
+    mutationFn: (data: RunCreateInput) => api.runs.create(data),
     onSuccess: (run) => {
       toast.success("Run started")
       queryClient.invalidateQueries({ queryKey: runKeys.all })
@@ -75,6 +76,22 @@ export function useStopRun() {
     },
     onError: (error) => {
       toast.error(`Failed to stop run: ${error.message}`)
+    },
+  })
+}
+
+export function useResumeRun() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.runs.resume,
+    onSuccess: (_, runId) => {
+      toast.success("Run resumed")
+      queryClient.invalidateQueries({ queryKey: runKeys.detail(runId) })
+      queryClient.invalidateQueries({ queryKey: runKeys.all })
+    },
+    onError: (error) => {
+      toast.error(`Failed to resume run: ${error.message}`)
     },
   })
 }
@@ -151,6 +168,23 @@ export function useRunMetrics(
   const [history, setHistory] = useState<RunMetrics[]>([])
   const [wsIsOpen, setWsIsOpen] = useState(false)
 
+  // 1. Load historical metrics on mount
+  useEffect(() => {
+    let mounted = true
+    api.runs.metrics(runId)
+      .then((data) => {
+        if (!mounted) return
+        setHistory(data)
+        if (data.length > 0) {
+          setMetrics(data[data.length - 1])
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load metrics history:", err)
+      })
+    return () => { mounted = false }
+  }, [runId])
+
   useEffect(() => {
     if (!isRunning) {
       wsRef.current?.close()
@@ -169,7 +203,10 @@ export function useRunMetrics(
           epsilon: data.epsilon,
         }
         setMetrics(m)
-        setHistory((prev) => [...prev.slice(-500), m])
+        // Append to history, keeping it reasonable size?
+        // Actually, for charts we want full history, but in memory might get large.
+        // For now, let's keep it growing.
+        setHistory((prev) => [...prev, m])
       },
       onStatus: () => {
         queryClient.invalidateQueries({ queryKey: runKeys.detail(runId) })
@@ -178,7 +215,7 @@ export function useRunMetrics(
         toast.error(`Run error: ${error}`)
       },
       onConnectionError: () => {
-        toast.error("WebSocket connection lost")
+        // toast.error("WebSocket connection lost") 
       },
     }
 
@@ -200,6 +237,145 @@ export function useRunMetrics(
 }
 
 // =============================================================================
+// Aggregated Metrics Hook for Dashboard
+// =============================================================================
+
+export interface AggregatedMetrics {
+  totalSteps: number
+  bestReward: number
+  avgFps: number
+}
+
+export interface UseAggregatedMetricsResult {
+  aggregated: AggregatedMetrics
+  isConnected: boolean
+  connectionCount: number
+}
+
+export function useAggregatedRunMetrics(
+  activeRunIds: string[]
+): UseAggregatedMetricsResult {
+  const queryClient = useQueryClient()
+
+  // Track WebSocket connections per run
+  const wsMapRef = useRef<Map<string, WebSocket>>(new Map())
+
+  // Track metrics per run
+  const [metricsMap, setMetricsMap] = useState<Map<string, RunMetrics>>(
+    new Map()
+  )
+
+  // Track connection status per run
+  const [connectedSet, setConnectedSet] = useState<Set<string>>(new Set())
+
+  // Stable reference for activeRunIds to avoid unnecessary effect triggers
+  const activeRunIdsJson = JSON.stringify(activeRunIds.sort())
+
+  // Manage connections based on active run IDs
+  useEffect(() => {
+    const currentIds = new Set(activeRunIds)
+    const existingIds = new Set(wsMapRef.current.keys())
+
+    // Close connections for runs no longer active
+    for (const id of existingIds) {
+      if (!currentIds.has(id)) {
+        const ws = wsMapRef.current.get(id)
+        ws?.close()
+        wsMapRef.current.delete(id)
+        setConnectedSet((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+        setMetricsMap((prev) => {
+          const next = new Map(prev)
+          next.delete(id)
+          return next
+        })
+      }
+    }
+
+    // Open connections for new active runs
+    for (const runId of activeRunIds) {
+      if (!wsMapRef.current.has(runId)) {
+        const callbacks: RunWebSocketCallbacks = {
+          onMetrics: (data) => {
+            const m: RunMetrics = {
+              step: data.step,
+              reward: data.reward,
+              avg_reward: data.avg_reward,
+              best_reward: data.best_reward,
+              fps: data.fps,
+              loss: data.loss,
+              epsilon: data.epsilon,
+            }
+            setMetricsMap((prev) => new Map(prev).set(runId, m))
+          },
+          onStatus: () => {
+            queryClient.invalidateQueries({ queryKey: runKeys.all })
+          },
+          onError: (error) => {
+            console.error(`Run ${runId} error:`, error)
+          },
+        }
+
+        const ws = createRunWebSocket(runId, callbacks)
+        wsMapRef.current.set(runId, ws)
+
+        ws.onopen = () => {
+          setConnectedSet((prev) => new Set(prev).add(runId))
+        }
+        ws.onclose = () => {
+          setConnectedSet((prev) => {
+            const next = new Set(prev)
+            next.delete(runId)
+            return next
+          })
+        }
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      wsMapRef.current.forEach((ws) => ws.close())
+      wsMapRef.current.clear()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRunIdsJson, queryClient])
+
+  // Compute aggregated metrics
+  const aggregated = useMemo<AggregatedMetrics>(() => {
+    let totalSteps = 0
+    let bestReward = -Infinity
+    let totalFps = 0
+    let fpsCount = 0
+
+    metricsMap.forEach((metrics) => {
+      totalSteps += metrics.step
+      if (metrics.best_reward > bestReward) {
+        bestReward = metrics.best_reward
+      }
+      if (metrics.fps > 0) {
+        totalFps += metrics.fps
+        fpsCount++
+      }
+    })
+
+    return {
+      totalSteps,
+      bestReward: bestReward === -Infinity ? 0 : bestReward,
+      avgFps: fpsCount > 0 ? totalFps / fpsCount : 0,
+    }
+  }, [metricsMap])
+
+  return {
+    aggregated,
+    isConnected: connectedSet.size > 0,
+    connectionCount: connectedSet.size,
+  }
+}
+
+// =============================================================================
 // Computed Stats
 // =============================================================================
 
@@ -208,11 +384,34 @@ export function useRunStats(runs: Run[]) {
   const completedRuns = runs.filter((r) => r.status === "completed")
   const failedRuns = runs.filter((r) => r.status === "failed")
 
+  // Calculate uptime from earliest active run's started_at
+  const uptime = useMemo(() => {
+    const startTimes = activeRuns
+      .map((r) => (r.started_at ? new Date(r.started_at).getTime() : null))
+      .filter((t): t is number => t !== null)
+      .sort((a, b) => a - b)
+
+    if (startTimes.length === 0) return null
+
+    const duration = intervalToDuration({
+      start: startTimes[0],
+      end: Date.now(),
+    })
+
+    return (
+      formatDuration(duration, { format: ["hours", "minutes"] }) || "< 1m"
+    )
+  }, [activeRuns])
+
   return {
     total: runs.length,
     activeCount: activeRuns.length,
     completedCount: completedRuns.length,
     failedCount: failedRuns.length,
     activeRuns,
+    uptime,
+    // Placeholder values - real metrics come from WebSocket/aggregated hook
+    totalSteps: 0,
+    bestReward: 0,
   }
 }

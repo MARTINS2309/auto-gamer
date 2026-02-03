@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react"
+import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Search } from "lucide-react"
+import { Page, PageHeader, PageTitle, PageDescription, PageContent } from "@/components/ui/page"
 import { useRoms, useRom, useImportRoms, useRunsByRom, useCreateRun } from "@/hooks"
 import { RomGrid, RomImportCard, RomDetailSheet } from "@/components/roms"
 import type { Rom } from "@/lib/schemas"
@@ -63,64 +64,65 @@ export function RomsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">ROM Library</h1>
-        <p className="text-muted-foreground">Browse and train on your games</p>
-      </div>
+    <Page>
+      <PageHeader>
+        <PageTitle>ROM Library</PageTitle>
+        <PageDescription>Browse and train on your games</PageDescription>
+      </PageHeader>
 
-      {/* Import Section */}
-      <RomImportCard
-        onImport={importRoms.mutate}
-        isPending={importRoms.isPending}
-      />
+      <PageContent className="space-y-6">
+        {/* Import Section */}
+        <RomImportCard
+          onImport={importRoms.mutate}
+          isPending={importRoms.isPending}
+        />
 
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 min-w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search ROMs..."
-            value={filters.search}
-            onChange={(e) => filters.setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* Filters */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="relative flex-1 min-w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search ROMs..."
+              value={filters.search}
+              onChange={(e) => filters.setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <ToggleGroup
+            type="single"
+            value={filters.system}
+            onValueChange={(v) => v && filters.setSystem(v)}
+          >
+            <ToggleGroupItem value="all">All</ToggleGroupItem>
+            {filters.systems.map((s) => (
+              <ToggleGroupItem key={s} value={s}>
+                {s}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
 
-        <ToggleGroup
-          type="single"
-          value={filters.system}
-          onValueChange={(v) => v && filters.setSystem(v)}
-        >
-          <ToggleGroupItem value="all">All</ToggleGroupItem>
-          {filters.systems.map((s) => (
-            <ToggleGroupItem key={s} value={s}>
-              {s}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
+        {/* ROM Grid */}
+        <RomGrid
+          roms={filters.filteredRoms}
+          isLoading={isLoading}
+          onSelectRom={handleSelectRom}
+        />
 
-      {/* ROM Grid */}
-      <RomGrid
-        roms={filters.filteredRoms}
-        isLoading={isLoading}
-        onSelectRom={handleSelectRom}
-      />
-
-      {/* ROM Detail Sheet */}
-      <RomDetailSheet
-        rom={romDetails}
-        isLoading={isLoadingDetails}
-        isOpen={!!selectedRomId}
-        onClose={handleCloseSheet}
-        selectedState={selectedState}
-        onStateChange={setUserSelectedState}
-        onStartRun={handleStartRun}
-        isStartingRun={createRun.isPending}
-        recentRuns={recentRuns}
-      />
-    </div>
+        {/* ROM Detail Sheet */}
+        <RomDetailSheet
+          rom={romDetails}
+          isLoading={isLoadingDetails}
+          isOpen={!!selectedRomId}
+          onClose={handleCloseSheet}
+          selectedState={selectedState}
+          onStateChange={setUserSelectedState}
+          onStartRun={handleStartRun}
+          isStartingRun={createRun.isPending}
+          recentRuns={recentRuns}
+        />
+      </PageContent>
+    </Page>
   )
 }

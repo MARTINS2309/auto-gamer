@@ -1,9 +1,21 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { LayoutDashboard, Gamepad2, Play, Settings, Moon, Sun, Monitor } from "lucide-react"
-import { useTheme } from "next-themes"
-import { Button } from "./ui/button"
-import { cn } from "@/lib/utils"
-import { useState, useEffect } from "react"
+import { LayoutDashboard, Gamepad2, Play, Settings } from "lucide-react"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
+import { ModeToggle } from "./mode-toggle"
+import { CRTToggle } from "./crt-toggle"
+import { ButtonGroup } from "./ui/button-group"
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -22,98 +34,76 @@ function CRTOverlay() {
   )
 }
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-    >
-      <Sun className="size-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute size-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
-  )
-}
-
-function CRTToggle() {
-  const [enabled, setEnabled] = useState(false)
-
-  useEffect(() => {
-    if (enabled) {
-      document.body.classList.add("crt-enabled")
-    } else {
-      document.body.classList.remove("crt-enabled")
-    }
-  }, [enabled])
-
-  return (
-    <Button
-      variant={enabled ? "default" : "ghost"}
-      size="icon"
-      onClick={() => setEnabled(!enabled)}
-      title="Toggle CRT effect"
-    >
-      <Monitor className="size-5" />
-    </Button>
-  )
-}
 
 export function RootLayout({ children }: { children: React.ReactNode }) {
   const router = useRouterState()
   const currentPath = router.location.pathname
 
   return (
-    <div className="flex min-h-svh bg-background">
-      {/* Sidebar */}
-      <aside className="w-56 border-r border-border bg-sidebar flex flex-col">
-        {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b border-border">
-          <Link to="/" className="flex items-center gap-2">
-            <Gamepad2 className="size-6 text-primary" />
-            <span className="font-semibold text-lg">Retro Runner</span>
-          </Link>
-        </div>
+    <SidebarProvider>
+      <Sidebar collapsible="icon" className="border-r">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild className="md:h-8 md:p-0">
+                <Link to="/">
+                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center">
+                    <Gamepad2 className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">Retro Runner</span>
+                    <span className="truncate text-xs">AI Training</span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent className="px-1.5 md:px-0">
+              <SidebarMenu>
+                {navItems.map((item) => {
+                  const isActive = item.path === "/"
+                    ? currentPath === "/"
+                    : currentPath.startsWith(item.path)
+                  return (
+                    <SidebarMenuItem key={item.path}>
+                      <SidebarMenuButton
+                        tooltip={{ children: item.label, hidden: false }}
+                        asChild
+                        isActive={isActive}
+                        className="px-2.5 md:px-2"
+                      >
+                        <Link to={item.path}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <ButtonGroup>
+            <ButtonGroup>
+              <ModeToggle />
+            </ButtonGroup>
+            <ButtonGroup>
+              <CRTToggle />
+            </ButtonGroup>
+          </ButtonGroup>
+        </SidebarFooter>
+      </Sidebar>
 
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item) => {
-            const isActive = item.path === "/"
-              ? currentPath === "/"
-              : currentPath.startsWith(item.path)
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 text-sm transition-colors",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Footer */}
-        <div className="p-3 border-t border-border flex items-center gap-1">
-          <ThemeToggle />
-          <CRTToggle />
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <SidebarInset>
         {children}
-      </main>
+      </SidebarInset>
 
       <CRTOverlay />
-    </div>
+    </SidebarProvider>
   )
 }

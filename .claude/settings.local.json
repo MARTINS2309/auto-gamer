@@ -41,7 +41,8 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm tsc:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(python3:*)"
     ]
   }
 }

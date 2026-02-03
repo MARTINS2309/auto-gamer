@@ -1,109 +1,80 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { RotateCcw, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Save } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Page, PageHeader, PageTitle, PageDescription, PageActions, PageContent } from "@/components/ui/page"
 import { useEmulators, useConfigForm } from "@/hooks"
+import { SystemSettingsCard } from "@/components/config/system-settings-card"
+import { AlgorithmDefaultsCard } from "@/components/config/algorithm-defaults-card"
+import { HyperparametersCard } from "@/components/config/hyperparameters-card"
+import type { RunHyperparams } from "@/lib/schemas"
 
 export function ConfigPage() {
   const { data: emulators = [] } = useEmulators()
-  const { formData, isSaving, handleChange, handleSave } = useConfigForm()
+  const { formData, isSaving, isDirty, isLoading, handleChange, handleSave, handleReset } = useConfigForm()
+
+  const hparams = formData.default_hyperparams || {}
+
+  const updateHParam = (key: keyof RunHyperparams, val: number) => {
+    // Cast needed as schema might be optional in partial updates
+    handleChange("default_hyperparams", { ...hparams, [key]: val } as RunHyperparams)
+  }
+
+  if (isLoading) {
+    return (
+      <Page>
+        <PageHeader><PageTitle>Loading Configuration...</PageTitle></PageHeader>
+        <PageContent><div className="flex items-center justify-center p-8">Loading...</div></PageContent>
+      </Page>
+    )
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">Configuration</h1>
-        <p className="text-muted-foreground">Training defaults and settings</p>
-      </div>
-
-      {/* Supported Platforms */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Supported Platforms</CardTitle>
-          <CardDescription>Available emulation cores via stable-retro</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {emulators.length === 0 ? (
-            <p className="text-muted-foreground">No platforms available</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {emulators.map((platform) => (
-                <Badge key={platform} variant="outline" className="text-base py-1 px-3">
-                  {platform}
-                </Badge>
-              ))}
-            </div>
+    <Page>
+      <PageHeader className="flex-row items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10 py-4 border-b">
+        <div>
+          <PageTitle>Configuration</PageTitle>
+          <PageDescription>Global settings and training defaults</PageDescription>
+        </div>
+        <PageActions className="flex items-center gap-2">
+          {isDirty && (
+            <Button variant="ghost" size="sm" onClick={handleReset}>
+              <RotateCcw className="size-4 mr-2" />
+              Reset
+            </Button>
           )}
-        </CardContent>
-      </Card>
+          <Button onClick={handleSave} disabled={isSaving || !isDirty}>
+            <Save className="size-4 mr-2" />
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </PageActions>
+      </PageHeader>
 
-      {/* Training Defaults */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Training Defaults</CardTitle>
-          <CardDescription>Default settings for new training runs</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Algorithm</Label>
-              <Select
-                value={formData.default_algorithm}
-                onValueChange={(v) => handleChange("default_algorithm", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select algorithm" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PPO">PPO</SelectItem>
-                  <SelectItem value="A2C">A2C</SelectItem>
-                  <SelectItem value="DQN">DQN</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <PageContent className="space-y-8 pb-20">
 
-            <div className="space-y-2">
-              <Label>Device</Label>
-              <Select
-                value={formData.default_device}
-                onValueChange={(v) => handleChange("default_device", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select device" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cuda">CUDA (GPU)</SelectItem>
-                  <SelectItem value="cpu">CPU</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        {/* System Settings */}
+        <SystemSettingsCard
+          formData={formData}
+          emulators={emulators}
+          onChange={handleChange}
+        />
 
-          <div className="space-y-2">
-            <Label>Storage Path</Label>
-            <Input
-              value={formData.storage_path || ""}
-              onChange={(e) => handleChange("storage_path", e.target.value)}
-              placeholder="./data"
-              className="font-mono"
-            />
-            <p className="text-sm text-muted-foreground">
-              Directory for checkpoints and training data
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        <Separator />
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isSaving}>
-          <Save className="size-4" />
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
-    </div>
+        {/* Algorithm Defaults */}
+        <AlgorithmDefaultsCard
+          formData={formData}
+          onChange={handleChange}
+        />
+
+        <Separator />
+
+        {/* Hyperparameters */}
+        <HyperparametersCard
+          hparams={hparams}
+          onChange={updateHParam}
+        />
+
+      </PageContent>
+    </Page>
   )
 }

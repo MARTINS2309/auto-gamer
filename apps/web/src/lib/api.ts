@@ -6,11 +6,13 @@ import {
   RunSchema,
   RunListSchema,
   RunCreateSchema,
+  RunMetricsSchema,
   ConfigSchema,
   EmulatorListSchema,
   type Rom,
   type Run,
   type RunCreate,
+  type RunCreateInput,
   type RunMetrics,
   type RunStatus,
   type Config,
@@ -123,7 +125,7 @@ export const api = {
 
     get: (id: string): Promise<Run> => request(`/api/runs/${id}`, RunSchema),
 
-    create: (data: Partial<RunCreate> & { rom: string; state: string }): Promise<Run> => {
+    create: (data: RunCreateInput): Promise<Run> => {
       // Parse to validate and apply defaults
       const validated = RunCreateSchema.parse(data)
       return request("/api/runs", RunSchema, {
@@ -135,8 +137,14 @@ export const api = {
     stop: (id: string): Promise<Run> =>
       request(`/api/runs/${id}/stop`, RunSchema, { method: "POST" }),
 
+    resume: (id: string): Promise<Run> =>
+      request(`/api/runs/${id}/resume`, RunSchema, { method: "POST" }), // Assuming backend returns RunSchema or similar
+
     delete: (id: string): Promise<void> =>
       requestVoid(`/api/runs/${id}`, { method: "DELETE" }),
+
+    metrics: (id: string): Promise<RunMetrics[]> =>
+      request(`/api/runs/${id}/metrics`, z.array(RunMetricsSchema)),
   },
 
   emulators: {

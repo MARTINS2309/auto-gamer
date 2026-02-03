@@ -34,8 +34,18 @@ def training_worker(run_id: str, config: dict, queue: multiprocessing.Queue):
                                   action_space=config.get("action_space", "filtered"))
         
         # Create VecEnv
+        # Note: SubprocVecEnv can fail when running in certain contexts (e.g., uvicorn)
+        # due to "daemonic processes are not allowed to have children" restriction.
+        # Fall back to DummyVecEnv which runs in a single process.
         if n_envs > 1:
-            env = SubprocVecEnv([make_env for _ in range(n_envs)])
+            try:
+                env = SubprocVecEnv([make_env for _ in range(n_envs)])
+            except AssertionError as e:
+                if "daemonic" in str(e):
+                    print(f"[{run_id}] SubprocVecEnv failed (daemonic restriction), using DummyVecEnv")
+                    env = DummyVecEnv([make_env for _ in range(n_envs)])
+                else:
+                    raise
         else:
             env = DummyVecEnv([make_env])
             
@@ -50,7 +60,7 @@ def training_worker(run_id: str, config: dict, queue: multiprocessing.Queue):
         # Init Model
         # Map hyperparams to kwargs. 
         # Note: hyperparams dict structure must match SB3 expected args.
-        model_kwargs = {
+        all_kwargs = {
             "verbose": 1,
             "tensorboard_log": f"./data/runs/{run_id}/logs",
             "learning_rate": hyperparams.get("learning_rate", 3e-4),
@@ -63,14 +73,37 @@ def training_worker(run_id: str, config: dict, queue: multiprocessing.Queue):
             "ent_coef": hyperparams.get("ent_coef", 0.0),
             "vf_coef": hyperparams.get("vf_coef", 0.5),
             "max_grad_norm": hyperparams.get("max_grad_norm", 0.5),
+            "buffer_size": hyperparams.get("buffer_size", 1_000_000), # DQN specific
+            "learning_starts": hyperparams.get("learning_starts", 50000), # DQN specific
+            "train_freq": hyperparams.get("train_freq", 4), # DQN specific
+            "gradient_steps": hyperparams.get("gradient_steps", 1), # DQN specific
+            "target_update_interval": hyperparams.get("target_update_interval", 10000), # DQN specific
+            "exploration_fraction": hyperparams.get("exploration_fraction", 0.1), # DQN specific
+            "exploration_initial_eps": hyperparams.get("exploration_initial_eps", 1.0), # DQN specific
+            "exploration_final_eps": hyperparams.get("exploration_final_eps", 0.05), # DQN specific
         }
         
-        # Filter kwargs based on AlgoClass (DQN/A2C might not support all PPO params)
-        # For simplicity, we assume PPO mostly. 
-        # TODO: Strict filtering if we support other algos seriously.
+        # Filter kwargs based on AlgoClass
+        import inspect
+        sig = inspect.signature(AlgoClass.__init__)
+        model_kwargs = {k: v for k, v in all_kwargs.items() if k in sig.parameters}
         
-        # Device
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        # Allow extra kwargs that might be in **kwargs of init if needed, but safer to be explicit
+        # PPO/A2C/DQN usually have explicit args.
+        
+        # Device detection/selection
+        requested_device = config.get("device", "auto")
+        if requested_device == "auto":
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif torch.backends.mps.is_available():
+                device = "mps"
+            else:
+                device = "cpu"
+        else:
+            device = requested_device
+            
+        print(f"[{run_id}] Using device: {device}")
         
         model = AlgoClass("CnnPolicy", env, device=device, **model_kwargs)
         

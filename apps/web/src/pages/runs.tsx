@@ -1,8 +1,10 @@
 import { useState, useCallback } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Page, PageHeader, PageTitle, PageDescription, PageContent } from "@/components/ui/page"
 import { useRuns, useStopRun, useBulkDeleteRuns } from "@/hooks"
 import { RunsTable, RunsFilters, BulkActions, filterRuns } from "@/components/runs"
+import { NewRunDialog } from "@/components/runs/new-run-dialog"
 import type { Run } from "@/lib/schemas"
 
 function useRunSelection(filteredRuns: Run[]) {
@@ -63,49 +65,53 @@ export function RunsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">Runs</h1>
-        <p className="text-muted-foreground">All training runs</p>
-      </div>
+    <Page>
+      <PageHeader>
+        <div>
+          <PageTitle>Runs</PageTitle>
+          <PageDescription>All training runs</PageDescription>
+        </div>
+        <NewRunDialog />
+      </PageHeader>
 
-      {/* Filters & Bulk Actions */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <RunsFilters
-          search={search}
-          onSearchChange={setSearch}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-        />
-        <BulkActions
-          selectedCount={selected.size}
-          onStop={handleBulkStop}
-          onDelete={handleBulkDelete}
-        />
-      </div>
-
-      {/* Runs Table */}
-      <Card>
-        <CardContent className="p-0">
-          <RunsTable
-            runs={filteredRuns}
-            isLoading={isLoading}
-            selected={selected}
-            onToggleSelect={toggleSelect}
-            onToggleSelectAll={toggleSelectAll}
-            onStopRun={(id) => stopRun.mutate(id)}
+      <PageContent className="space-y-6">
+        {/* Filters & Bulk Actions */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <RunsFilters
+            search={search}
+            onSearchChange={setSearch}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
           />
-        </CardContent>
-      </Card>
+          <BulkActions
+            selectedCount={selected.size}
+            onStop={handleBulkStop}
+            onDelete={handleBulkDelete}
+          />
+        </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{filteredRuns.length} runs</span>
-        <Button variant="outline" size="sm" disabled>
-          Export CSV
-        </Button>
-      </div>
-    </div>
+        {/* Runs Table */}
+        <Card>
+          <CardContent className="p-0">
+            <RunsTable
+              runs={filteredRuns}
+              isLoading={isLoading}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+              onStopRun={(id) => stopRun.mutate(id)}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>{filteredRuns.length} runs</span>
+          <Button variant="outline" size="sm" disabled>
+            Export CSV
+          </Button>
+        </div>
+      </PageContent>
+    </Page>
   )
 }
