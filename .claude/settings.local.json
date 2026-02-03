@@ -47,7 +47,9 @@
       "Bash(__NEW_LINE_523533653fb2206c__ echo \"Super Mario Bros 3 \\(USA\\):\")",
       "Bash(curl:*)",
       "Bash(__NEW_LINE_a826699056468a10__ echo \"Super Mario World \\(USA\\):\")",
-      "Bash(__NEW_LINE_6f09d34e71182cc8__ echo \"Sonic The Hedgehog \\(USA\\):\")"
+      "Bash(__NEW_LINE_6f09d34e71182cc8__ echo \"Sonic The Hedgehog \\(USA\\):\")",
+      "WebFetch(domain:api-docs.igdb.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

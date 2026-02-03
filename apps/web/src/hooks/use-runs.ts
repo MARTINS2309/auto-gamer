@@ -98,19 +98,48 @@ export function useResumeRun() {
 
 export function useDeleteRun() {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: api.runs.delete,
-    onSuccess: () => {
+    onSuccess: (_, runId) => {
       toast.success("Run deleted")
       queryClient.invalidateQueries({ queryKey: runKeys.all })
-      navigate({ to: "/runs" })
     },
     onError: (error) => {
       toast.error(`Failed to delete run: ${error.message}`)
     },
   })
+}
+
+export function useUpdateRun() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (variables: { id: string; updates: { hyperparams: any } }) =>
+      api.runs.update(variables.id, variables.updates),
+    onSuccess: (run) => {
+      toast.success("Run updated")
+      queryClient.setQueryData(runKeys.detail(run.id), run)
+      queryClient.invalidateQueries({ queryKey: runKeys.all })
+    },
+    onError: (error) => {
+      toast.error(`Failed to update run: ${error.message}`)
+    },
+  })
+}
+const navigate = useNavigate()
+
+return useMutation({
+  mutationFn: api.runs.delete,
+  onSuccess: () => {
+    toast.success("Run deleted")
+    queryClient.invalidateQueries({ queryKey: runKeys.all })
+    navigate({ to: "/runs" })
+  },
+  onError: (error) => {
+    toast.error(`Failed to delete run: ${error.message}`)
+  },
+})
 }
 
 export function useBulkStopRuns() {
@@ -356,7 +385,7 @@ export function useAggregatedRunMetrics(
       if (metrics.best_reward > bestReward) {
         bestReward = metrics.best_reward
       }
-      if (metrics.fps > 0) {
+      if (metrics.fps && metrics.fps > 0) {
         totalFps += metrics.fps
         fpsCount++
       }

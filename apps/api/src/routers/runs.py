@@ -4,9 +4,10 @@ from typing import List
 import uuid
 import os
 import json
+import traceback
 
-from ..models.db import get_db, RunModel, RunStatus
-from ..models.schemas import RunCreate, RunResponse, MetricPoint
+from ..models.db import get_db, RunModel, RunStatus, RunMetricModel
+from ..models.schemas import RunCreate, RunResponse, MetricPoint, RunUpdate
 from ..services.run_manager import manager as run_manager
 from .config import load_config
 
@@ -86,6 +87,27 @@ async def list_runs(
 async def get_run_details(run_id: str, db: Session = Depends(get_db)):
     return get_run_or_404(run_id, db)
 
+@router.patch("/runs/{run_id}", response_model=RunResponse)
+async def update_run(run_id: str, run_update: RunUpdate, db: Session = Depends(get_db)):
+    """Update run configuration. Only allowed if run is PAUSED or PENDING."""
+    run = get_run_or_404(run_id, db)
+    
+    # Check status
+    if run.status not in [RunStatus.PAUSED.value, RunStatus.PENDING.value, RunStatus.STOPPED.value]:
+        raise HTTPException(status_code=400, detail=f"Cannot update run in '{run.status}' state. Must be PAUSED, PENDING or STOPPED.")
+
+    if run_update.hyperparams:
+        # Update hyperparams
+        # Since hyperparams is typically a dict or JSON in DB
+        # We need to merge or replace. Pydantic models will replace via assignment if schema matches.
+        # But wait, run.hyperparams in DB might be a dict (JSON).
+        # We will replace it entirely with the new valid schema dump.
+        run.hyperparams = run_update.hyperparams.model_dump()
+        
+    db.commit()
+    db.refresh(run)
+    return run
+
 @router.delete("/runs/{run_id}", status_code=204)
 async def delete_run(run_id: str, db: Session = Depends(get_db)):
     """Delete a run and its data."""
@@ -113,14 +135,17 @@ async def delete_run(run_id: str, db: Session = Depends(get_db)):
     
     return None
 
-@router.post("/runs/{run_id}/resume")
+@router.post("/runs/{run_id}/resume", response_model=RunResponse)
 async def resume_run(run_id: str, db: Session = Depends(get_db)):
     """Resume a paused run - not fully implemented in runner yet, essentially a restart or no-op."""
     run = get_run_or_404(run_id, db)
     # TODO: Implement resume logic in RunManager
     # For now, just mark it as running if it was paused?
     # SB3 doesn't support easy pause/resume without save/load cycle.
-    return {"message": "Resume not fully implemented yet"}
+    # return {"message": "Resume not fully implemented yet"}
+    
+    # Just return the run object to satisfy frontend schema
+    return run
 
 @router.post("/runs/{run_id}/stop", response_model=RunResponse)
 async def stop_run(run_id: str, db: Session = Depends(get_db)):
@@ -133,11 +158,19 @@ async def stop_run(run_id: str, db: Session = Depends(get_db)):
 async def get_run_metrics(run_id: str, db: Session = Depends(get_db)):
     """
     Get historical metrics for a run.
+    Now fetches primarily from DB, falls back to file if empty (legacy support).
     """
+    # Check if run exists
     run = db.query(RunModel).filter(RunModel.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    
+    # Try DB first
+    db_metrics = db.query(RunMetricModel).filter(RunMetricModel.run_id == run_id).order_by(RunMetricModel.step).all()
+    if db_metrics:
+        return db_metrics
         
+    # Fallback to file for older runs
     metrics_file = os.path.join("data", "runs", run_id, "metrics.jsonl")
     
     if not os.path.exists(metrics_file):
@@ -154,6 +187,7 @@ async def get_run_metrics(run_id: str, db: Session = Depends(get_db)):
                         continue
     except Exception as e:
         print(f"Error reading metrics for run {run_id}: {e}")
+        traceback.print_exc()
         return []
         
     return metrics

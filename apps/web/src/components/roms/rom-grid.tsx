@@ -1,5 +1,7 @@
+import { useMemo } from "react"
 import { Gamepad2 } from "lucide-react"
 import { RomCard } from "./rom-card"
+import { useGameMetadataBatch } from "@/hooks"
 import type { Rom } from "@/lib/schemas"
 
 interface RomGridProps {
@@ -9,6 +11,14 @@ interface RomGridProps {
 }
 
 export function RomGrid({ roms, isLoading, onSelectRom }: RomGridProps) {
+  // Batch fetch metadata for all visible ROMs in ONE request
+  // Use rom.id as the correlation key
+  const batchRequest = useMemo(
+    () => roms.map(rom => ({ game_id: rom.id, system: rom.system })),
+    [roms]
+  )
+  const { metadataMap } = useGameMetadataBatch(batchRequest)
+
   if (isLoading) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -28,11 +38,12 @@ export function RomGrid({ roms, isLoading, onSelectRom }: RomGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 stagger-children">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
       {roms.map((rom) => (
         <RomCard
           key={rom.id}
           rom={rom}
+          metadata={metadataMap.get(rom.id)}
           onSelect={() => onSelectRom(rom.id)}
         />
       ))}

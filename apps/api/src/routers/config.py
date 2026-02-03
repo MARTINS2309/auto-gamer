@@ -22,6 +22,14 @@ class GlobalConfig(BaseModel):
     default_algorithm: Algorithm = Field(Algorithm.PPO, description="Default algorithm selected in UI")
     default_hyperparams: RunHyperparams = Field(default_factory=RunHyperparams, description="Default hyperparameters used when creating a new run")
 
+    # External API Credentials
+    igdb_client_id: Optional[str] = Field(None, description="IGDB/Twitch API Client ID")
+    igdb_client_secret: Optional[str] = Field(None, description="IGDB/Twitch API Client Secret")
+    screenscraper_dev_id: Optional[str] = Field(None, description="ScreenScraper Developer ID")
+    screenscraper_dev_password: Optional[str] = Field(None, description="ScreenScraper Developer Password")
+    screenscraper_username: Optional[str] = Field(None, description="ScreenScraper Username")
+    screenscraper_password: Optional[str] = Field(None, description="ScreenScraper User Password")
+
 router = APIRouter()
 
 def load_config() -> GlobalConfig:

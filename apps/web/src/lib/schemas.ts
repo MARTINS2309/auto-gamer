@@ -42,6 +42,37 @@ export const RomSchema = z.object({
 })
 export type Rom = z.infer<typeof RomSchema>
 
+// =============================================================================
+// Game Metadata Schemas (from IGDB/ScreenScraper)
+// =============================================================================
+
+export const GameMetadataSchema = z.object({
+  game_id: z.string(),
+  system: z.string(),
+  name: z.string(),
+  summary: z.string().nullable().optional(),
+  storyline: z.string().nullable().optional(),
+  rating: z.number().nullable().optional(),
+  rating_count: z.number().int().nullable().optional(),
+  genres: z.array(z.string()).default([]),
+  themes: z.array(z.string()).default([]),
+  game_modes: z.array(z.string()).default([]),
+  player_perspectives: z.array(z.string()).default([]),
+  platforms: z.array(z.string()).default([]),
+  release_date: z.string().nullable().optional(),
+  developer: z.string().nullable().optional(),
+  publisher: z.string().nullable().optional(),
+  cover_url: z.string().nullable().optional(),
+  screenshot_urls: z.array(z.string()).default([]),
+  players: z.string().nullable().optional(),
+  estimated_playtime: z.number().int().nullable().optional(),
+  source: z.string(),
+  cached: z.boolean().default(true),
+})
+export type GameMetadata = z.infer<typeof GameMetadataSchema>
+
+export const GameMetadataListSchema = z.array(GameMetadataSchema)
+
 export const RomListSchema = z.array(RomSchema)
 
 export const RomImportResponseSchema = z.object({
@@ -234,14 +265,14 @@ export type RunCreateInput = z.input<typeof RunCreateSchema>
 
 export const RunMetricsSchema = z.object({
   step: z.number().int().min(0),
-  timestamp: z.number().min(0).optional(),
-  reward: z.number(),
-  avg_reward: z.number(),
-  best_reward: z.number(),
-  fps: z.number().min(0),
-  loss: z.number().optional(),
-  epsilon: z.number().min(0).max(1).optional(),
-  details: z.record(z.string(), z.any()).optional(),
+  timestamp: z.number().min(0).optional().nullable(),
+  reward: z.number().nullable(),
+  avg_reward: z.number().nullable(),
+  best_reward: z.number().nullable(),
+  fps: z.number().min(0).optional().nullable(),
+  loss: z.number().optional().nullable(),
+  epsilon: z.number().min(0).max(1).optional().nullable(),
+  details: z.record(z.string(), z.any()).optional().nullable(),
 })
 export type RunMetrics = z.infer<typeof RunMetricsSchema>
 
@@ -338,3 +369,24 @@ export function formatSteps(steps: number): string {
   }
   return steps.toLocaleString()
 }
+
+// =============================================================================
+// Play Session Schemas
+// =============================================================================
+
+export const PlaySessionResponseSchema = z.object({
+  session_id: z.string(),
+  rom_id: z.string(),
+  state: z.string().nullable().optional(),
+  message: z.string(),
+})
+export type PlaySessionResponse = z.infer<typeof PlaySessionResponseSchema>
+
+export const PlaySessionInfoSchema = z.object({
+  id: z.string(),
+  rom_id: z.string(),
+  state: z.string().nullable().optional(),
+  started_at: z.string(),
+  is_alive: z.boolean(),
+})
+export type PlaySessionInfo = z.infer<typeof PlaySessionInfoSchema>

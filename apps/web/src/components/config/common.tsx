@@ -32,6 +32,7 @@ export function HyperparamSlider({
     step,
     onChange,
     tooltip,
+    readOnly = false,
 }: {
     label: string
     value: number
@@ -40,6 +41,7 @@ export function HyperparamSlider({
     step: number
     onChange: (val: number) => void
     tooltip: string
+    readOnly?: boolean
 }) {
     return (
         <div className="space-y-3">
@@ -55,6 +57,8 @@ export function HyperparamSlider({
                 step={step}
                 value={[value]}
                 onValueChange={(vals) => onChange(vals[0])}
+                disabled={readOnly}
+                className={readOnly ? "opacity-50" : ""}
             />
         </div>
     )

@@ -9,7 +9,7 @@ from typing import Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from ..models.db import SessionLocal, RunModel, RunStatus
+from ..models.db import SessionLocal, RunModel, RunStatus, RunMetricModel
 from ..models.schemas import MetricPoint
 from .ws_manager import manager as ws_manager
 from ..training.runner import training_worker
@@ -156,11 +156,33 @@ class RunManager:
                         print(f"[Monitor] SB3 Metric: step={normalized['step']}")
                         self._emit_event(run_id, normalized)
                         
+                        # Save to File (for legacy backup/easy debug)
                         try:
+                            # print(f"[DEBUG] Writing metric to {metrics_file}")
                             with open(metrics_file, "a") as f:
                                 f.write(json.dumps(normalized) + "\n")
                         except Exception as e:
-                            print(f"[Monitor] Failed to save metric: {e}")
+                            print(f"[Monitor] Failed to save metric to file: {e}")
+
+                        # Save to DB
+                        try:
+                            db_metric = RunMetricModel(
+                                run_id=run_id,
+                                step=normalized['step'],
+                                timestamp=normalized['timestamp'],
+                                reward=normalized['reward'],
+                                avg_reward=normalized['avg_reward'],
+                                best_reward=normalized['best_reward'],
+                                fps=normalized['fps'],
+                                loss=normalized['loss'],
+                                epsilon=normalized['epsilon'],
+                                details=normalized['details']
+                            )
+                            db.add(db_metric)
+                            db.commit()
+                        except Exception as e:
+                             print(f"[Monitor] Failed to save metric to DB: {e}")
+                             db.rollback()
                          
                     elif msg_type == "status":
                         status = msg.get("status")

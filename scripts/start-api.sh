@@ -12,6 +12,14 @@ API_DIR="$ROOT_DIR/apps/api"
 
 echo -e "${GREEN}Starting Retro Runner API...${NC}"
 
+# Kill any existing process on port 8000
+PORT=8000
+EXISTING_PID=$(lsof -ti :$PORT || true)
+if [ ! -z "$EXISTING_PID" ]; then
+    echo "Killing process $EXISTING_PID on port $PORT"
+    kill -9 $EXISTING_PID
+fi
+
 cd "$API_DIR"
 source .venv/bin/activate
 

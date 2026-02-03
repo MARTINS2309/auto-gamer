@@ -9,6 +9,10 @@ import {
   RunMetricsSchema,
   ConfigSchema,
   EmulatorListSchema,
+  GameMetadataSchema,
+  GameMetadataListSchema,
+  PlaySessionResponseSchema,
+  PlaySessionInfoSchema,
   type Rom,
   type Run,
   type RunCreate,
@@ -18,6 +22,9 @@ import {
   type Config,
   type ConfigUpdate,
   type RomImportResponse,
+  type GameMetadata,
+  type PlaySessionResponse,
+  type PlaySessionInfo,
 } from "./schemas"
 
 // =============================================================================
@@ -136,7 +143,11 @@ export const api = {
 
     stop: (id: string): Promise<Run> =>
       request(`/api/runs/${id}/stop`, RunSchema, { method: "POST" }),
-
+    update: (id: string, updates: { hyperparams: any }): Promise<Run> =>
+      request(`/api/runs/${id}`, RunSchema, {
+        method: "PATCH",
+        body: JSON.stringify(updates)
+      }),
     resume: (id: string): Promise<Run> =>
       request(`/api/runs/${id}/resume`, RunSchema, { method: "POST" }), // Assuming backend returns RunSchema or similar
 
@@ -159,6 +170,38 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+  },
+
+  metadata: {
+    get: (system: string, gameId: string): Promise<GameMetadata> =>
+      request(`/api/metadata/game/${system}/${gameId}`, GameMetadataSchema),
+
+    batch: (games: Array<{ game_id: string; system: string }>): Promise<GameMetadata[]> =>
+      request("/api/metadata/batch", GameMetadataListSchema, {
+        method: "POST",
+        body: JSON.stringify(games),
+      }),
+  },
+
+  play: {
+    start: (romId: string, state?: string, players?: number): Promise<PlaySessionResponse> => {
+      const params = new URLSearchParams()
+      if (state) params.append("state", state)
+      if (players && players > 1) params.append("players", String(players))
+      const query = params.toString() ? `?${params.toString()}` : ""
+      return request(`/api/play/${romId}${query}`, PlaySessionResponseSchema, {
+        method: "POST",
+      })
+    },
+
+    stop: (sessionId: string): Promise<void> =>
+      requestVoid(`/api/play/${sessionId}`, { method: "DELETE" }),
+
+    get: (sessionId: string): Promise<PlaySessionInfo> =>
+      request(`/api/play/${sessionId}`, PlaySessionInfoSchema),
+
+    list: (): Promise<PlaySessionInfo[]> =>
+      request("/api/play", z.array(PlaySessionInfoSchema)),
   },
 }
 
@@ -212,5 +255,5 @@ export function createRunWebSocket(
 // Re-exports
 // =============================================================================
 
-export type { Rom, Run, RunCreate, RunMetrics, RunStatus, Config, ConfigUpdate, RomImportResponse }
+export type { Rom, Run, RunCreate, RunMetrics, RunStatus, Config, ConfigUpdate, RomImportResponse, GameMetadata, PlaySessionResponse, PlaySessionInfo }
 export { ApiError as ApiClientError }

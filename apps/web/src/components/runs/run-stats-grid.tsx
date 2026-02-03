@@ -25,18 +25,18 @@ export function RunStatsGrid({ run, metrics }: RunStatsGridProps) {
             />
             <StatTile
                 label="Best Reward"
-                value={metrics.best_reward}
+                value={metrics.best_reward ?? "--"}
                 icon={Trophy}
                 color="text-chart-1"
             />
             <StatTile
                 label="Avg Reward"
-                value={metrics.avg_reward.toFixed(1)}
+                value={metrics.avg_reward?.toFixed(1) ?? "--"}
                 icon={TrendingUp}
             />
             <StatTile
                 label="FPS"
-                value={metrics.fps.toFixed(1)}
+                value={(metrics.fps ?? 0).toFixed(1)}
                 icon={Activity}
             />
             <StatTile

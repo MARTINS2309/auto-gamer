@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { StatusBadge } from "@/components/shared"
 import type { Run } from "@/lib/schemas"
+import { useRoms, useGameMetadata } from "@/hooks"
 
 interface RunsTableProps {
   runs: Run[]
@@ -21,6 +22,89 @@ interface RunsTableProps {
 function copyId(id: string) {
   navigator.clipboard.writeText(id)
   toast.success("Run ID copied")
+}
+
+function RunRow({
+  run,
+  isSelected,
+  onToggleSelect,
+  onStopRun
+}: {
+  run: Run
+  isSelected: boolean
+  onToggleSelect: (id: string) => void
+  onStopRun: (id: string) => void
+}) {
+  const { data: roms = [] } = useRoms()
+  const rom = roms.find(r => r.id === run.rom)
+  const { data: metadata } = useGameMetadata(
+    rom?.system ?? null,
+    rom?.id ?? null
+  )
+
+  const displayName = metadata?.name ?? rom?.name ?? run.rom
+
+  return (
+    <TableRow>
+      <TableCell>
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onToggleSelect(run.id)}
+        />
+      </TableCell>
+      <TableCell>
+        <StatusBadge status={run.status} />
+      </TableCell>
+      <TableCell>
+        <button
+          onClick={() => copyId(run.id)}
+          className="font-mono text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+        >
+          {run.id.slice(0, 8)}...
+          <Copy className="size-3" />
+        </button>
+      </TableCell>
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-2">
+          {metadata?.cover_url && (
+            <img
+              src={metadata.cover_url}
+              alt={metadata.name}
+              className="w-8 h-10 object-cover rounded shadow-sm hidden sm:block"
+            />
+          )}
+          <span className="truncate max-w-[200px]" title={`${displayName} (${rom?.system ?? "Unknown"})`}>{displayName}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{run.state}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{run.algorithm}</Badge>
+      </TableCell>
+      <TableCell className="text-muted-foreground text-sm">
+        {run.started_at
+          ? formatDistanceToNow(new Date(run.started_at), { addSuffix: true })
+          : "--"}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <Link to="/runs/$runId" params={{ runId: run.id }}>
+            <Button variant="ghost" size="icon-xs">
+              <ExternalLink className="size-3" />
+            </Button>
+          </Link>
+          {run.status === "running" && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onStopRun(run.id)}
+            >
+              <Square className="size-3" />
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  )
 }
 
 export function RunsTable({
@@ -59,7 +143,7 @@ export function RunsTable({
           </TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Run ID</TableHead>
-          <TableHead>ROM</TableHead>
+          <TableHead>Game</TableHead>
           <TableHead>State</TableHead>
           <TableHead>Algorithm</TableHead>
           <TableHead>Started</TableHead>
@@ -68,54 +152,13 @@ export function RunsTable({
       </TableHeader>
       <TableBody>
         {runs.map((run) => (
-          <TableRow key={run.id}>
-            <TableCell>
-              <Checkbox
-                checked={selected.has(run.id)}
-                onCheckedChange={() => onToggleSelect(run.id)}
-              />
-            </TableCell>
-            <TableCell>
-              <StatusBadge status={run.status} />
-            </TableCell>
-            <TableCell>
-              <button
-                onClick={() => copyId(run.id)}
-                className="font-mono text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-              >
-                {run.id.slice(0, 8)}...
-                <Copy className="size-3" />
-              </button>
-            </TableCell>
-            <TableCell className="font-medium">{run.rom}</TableCell>
-            <TableCell className="text-muted-foreground">{run.state}</TableCell>
-            <TableCell>
-              <Badge variant="outline">{run.algorithm}</Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground text-sm">
-              {run.started_at
-                ? formatDistanceToNow(new Date(run.started_at), { addSuffix: true })
-                : "--"}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <Link to="/runs/$runId" params={{ runId: run.id }}>
-                  <Button variant="ghost" size="icon-xs">
-                    <ExternalLink className="size-3" />
-                  </Button>
-                </Link>
-                {run.status === "running" && (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onStopRun(run.id)}
-                  >
-                    <Square className="size-3" />
-                  </Button>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
+          <RunRow
+            key={run.id}
+            run={run}
+            isSelected={selected.has(run.id)}
+            onToggleSelect={onToggleSelect}
+            onStopRun={onStopRun}
+          />
         ))}
       </TableBody>
     </Table>

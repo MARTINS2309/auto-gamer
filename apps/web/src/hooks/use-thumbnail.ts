@@ -1,54 +1,46 @@
-import { useState, useEffect } from "react"
-import { fetchThumbnail } from "@/lib/thumbnails"
+import { useState, useCallback } from "react"
+import { getThumbnailUrl } from "@/lib/thumbnails"
 
 interface UseThumbnailResult {
-  url: string | null
+  url: string
   loading: boolean
-  error: boolean
+  failed: boolean
+  onError: () => void
+  onLoad: () => void
 }
 
 /**
- * Hook to fetch and cache a game thumbnail.
+ * Hook to get a game thumbnail via the backend proxy.
+ * Backend handles caching and LibRetro lookups.
  */
 export function useThumbnail(
   gameName: string | undefined,
   system: string | undefined,
   type: "boxart" | "snap" | "title" = "boxart"
 ): UseThumbnailResult {
-  const [url, setUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!gameName || !system) {
-      setUrl(null)
-      setLoading(false)
-      setError(false)
-      return
-    }
+  // Always generate URL - let the img element handle success/failure
+  const url = gameName && system
+    ? getThumbnailUrl(gameName, system, type)
+    : ""
 
-    let cancelled = false
-    setLoading(true)
-    setError(false)
+  const onError = useCallback(() => {
+    setFailed(true)
+    setLoading(false)
+  }, [])
 
-    fetchThumbnail(gameName, system, type)
-      .then((result) => {
-        if (cancelled) return
-        setUrl(result)
-        setError(result === null)
-        setLoading(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setUrl(null)
-        setError(true)
-        setLoading(false)
-      })
+  const onLoad = useCallback(() => {
+    setFailed(false)
+    setLoading(false)
+  }, [])
 
-    return () => {
-      cancelled = true
-    }
-  }, [gameName, system, type])
-
-  return { url, loading, error }
+  return {
+    url,
+    loading,
+    failed,
+    onError,
+    onLoad,
+  }
 }

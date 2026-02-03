@@ -135,6 +135,12 @@ class RunCreate(RunConfig):
     pass
 
 
+class RunUpdate(BaseModel):
+    """Schema for updating a run's configuration (only allowed for specific fields/status)."""
+    hyperparams: Optional[RunHyperparams] = None
+    # Potentially other fields later
+
+
 class RunResponse(RunConfig):
     id: str
     status: RunStatus
@@ -151,12 +157,14 @@ class RunResponse(RunConfig):
 class MetricPoint(BaseModel):
     step: int = Field(ge=0)
     timestamp: float = Field(ge=0)
-    reward: float
-    avg_reward: float
-    best_reward: float
-    fps: float = Field(ge=0)
+    reward: Optional[float] = 0.0
+    avg_reward: Optional[float] = 0.0
+    best_reward: Optional[float] = 0.0
+    fps: Optional[float] = Field(default=0.0, ge=0)
     loss: Optional[float] = None
     epsilon: Optional[float] = Field(default=None, ge=0, le=1)
+    details: Optional[Dict[str, Any]] = None
+    type: str = "metric"
 
 
 class ActionCommand(BaseModel):

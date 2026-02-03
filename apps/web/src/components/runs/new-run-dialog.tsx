@@ -34,7 +34,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRoms, useCreateRun, useRomStates } from "@/hooks"
+import { useRoms, useCreateRun, useRomStates, useGameMetadata } from "@/hooks"
 import { RunCreateSchema, DEFAULT_HYPERPARAMS } from "@/lib/schemas"
 import type { RunCreateInput } from "@/lib/schemas"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
@@ -105,6 +105,11 @@ export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
     // Filter playable roms
     const playableRoms = roms.filter(r => r.playable)
     const selectedRom = form.watch("rom")
+    const activeRom = roms.find(r => r.id === selectedRom)
+    const { data: metadata, isLoading: isMetadataLoading } = useGameMetadata(
+        activeRom?.system ?? null,
+        activeRom?.id ?? null
+    )
 
     const onSubmit = (values: RunCreateInput) => {
         createRun.mutate(values, {
@@ -143,6 +148,36 @@ export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
 
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+                        {metadata && (
+                            <div className="flex gap-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                {metadata.cover_url && (
+                                    <img
+                                        src={metadata.cover_url.replace("t_thumb", "t_cover_big")}
+                                        alt={metadata.name}
+                                        className="w-24 h-32 object-cover rounded shadow"
+                                    />
+                                )}
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold text-lg">{metadata.name}</h3>
+                                    <p className="text-sm text-muted-foreground line-clamp-3">
+                                        {metadata.summary || "No description available."}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {metadata.genres.slice(0, 3).map(g => (
+                                            <span key={g} className="text-xs px-2 py-1 bg-background rounded border">
+                                                {g}
+                                            </span>
+                                        ))}
+                                        {metadata.rating && (
+                                            <span className="text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 rounded border border-yellow-200">
+                                                ★ {Math.round(metadata.rating)}%
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <FormField

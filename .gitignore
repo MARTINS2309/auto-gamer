@@ -21,6 +21,8 @@ build/
 
 # Data & Runtime
 /data/
+/apps/api/runtime/
+/apps/api/data/
 
 # Packages (external repos)
 /packages/stable-retro/

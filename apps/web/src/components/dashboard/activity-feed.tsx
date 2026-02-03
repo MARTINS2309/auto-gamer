@@ -17,9 +17,9 @@ import {
   AlertCircle,
   CheckCircle,
 } from "lucide-react"
-import type { Run, ActivityEventType } from "@/lib/schemas"
+import type { Run, ActivityEventType, ActivityEvent } from "@/lib/schemas"
 import { useActivityFeed } from "@/hooks/use-activity"
-import { useStopRun, useResumeRun } from "@/hooks"
+import { useStopRun, useResumeRun, useRoms, useGameMetadata } from "@/hooks"
 
 interface ActivityFeedProps {
   runs: Run[]
@@ -62,6 +62,91 @@ const ALL_EVENT_TYPES: ActivityEventType[] = [
   "milestone_steps",
 ]
 
+function ActivityItem({
+  event,
+  runs,
+  stopRun,
+  resumeRun
+}: {
+  event: ActivityEvent
+  runs: Run[]
+  stopRun: ReturnType<typeof useStopRun>
+  resumeRun: ReturnType<typeof useResumeRun>
+}) {
+  const Icon = EVENT_ICONS[event.type]
+  const color = EVENT_COLORS[event.type]
+
+  const run = runs.find((r) => r.id === event.runId)
+  const runStatus = run?.status ?? null
+
+  // Metadata fetching
+  const { data: roms = [] } = useRoms()
+  const romId = run?.rom || event.runName // Fallback if run not found but we have name
+  const rom = roms.find(r => r.id === romId)
+
+  // We need system and game ID for metadata
+  // If run is lost, we might not have 'rom' full object from just ID if not in list
+  const { data: metadata } = useGameMetadata(
+    rom?.system ?? null,
+    rom?.id ?? null
+  )
+
+  const displayName = metadata?.name ?? rom?.name ?? event.runName
+
+  return (
+    <div
+      className="flex items-start gap-3 text-sm group"
+    >
+      <div className="mt-0.5 relative">
+        <Icon className={`size-4 ${color}`} />
+        {metadata?.cover_url && (
+          <img
+            src={metadata.cover_url}
+            alt={metadata.name}
+            className="absolute -top-1 -left-1 w-6 h-6 object-cover rounded opacity-0 group-hover:opacity-100 transition-opacity"
+          />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="font-medium truncate" title={displayName}>{displayName}</p>
+        <p className="text-muted-foreground truncate">
+          {event.message}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          {formatDistanceToNow(new Date(event.timestamp), {
+            addSuffix: true,
+          })}
+        </p>
+      </div>
+
+      {/* Quick actions - show on hover */}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        {runStatus === "running" && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => stopRun.mutate(event.runId)}
+            title="Stop run"
+          >
+            <Square className="size-3" />
+          </Button>
+        )}
+        {runStatus === "stopped" && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => resumeRun.mutate(event.runId)}
+            title="Resume run"
+          >
+            <Play className="size-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function ActivityFeed({ runs, limit = 50 }: ActivityFeedProps) {
   const { filteredEvents, activeFilter, setFilter } = useActivityFeed({
     runs,
@@ -80,11 +165,6 @@ export function ActivityFeed({ runs, limit = 50 }: ActivityFeedProps) {
     } else {
       setFilter([...activeFilter, type])
     }
-  }
-
-  const getRunStatus = (runId: string): string | null => {
-    const run = runs.find((r) => r.id === runId)
-    return run?.status ?? null
   }
 
   if (filteredEvents.length === 0) {
@@ -111,55 +191,15 @@ export function ActivityFeed({ runs, limit = 50 }: ActivityFeedProps) {
       </div>
       <ScrollArea className="h-80">
         <div className="px-6 pb-6 space-y-3">
-          {filteredEvents.map((event) => {
-            const Icon = EVENT_ICONS[event.type]
-            const color = EVENT_COLORS[event.type]
-            const runStatus = getRunStatus(event.runId)
-
-            return (
-              <div
-                key={event.id}
-                className="flex items-start gap-3 text-sm group"
-              >
-                <Icon className={`size-4 mt-0.5 ${color}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{event.runName}</p>
-                  <p className="text-muted-foreground truncate">
-                    {event.message}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {formatDistanceToNow(new Date(event.timestamp), {
-                      addSuffix: true,
-                    })}
-                  </p>
-                </div>
-
-                {/* Quick actions - show on hover */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  {runStatus === "running" && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => stopRun.mutate(event.runId)}
-                      title="Stop run"
-                    >
-                      <Square className="size-3" />
-                    </Button>
-                  )}
-                  {runStatus === "stopped" && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => resumeRun.mutate(event.runId)}
-                      title="Resume run"
-                    >
-                      <Play className="size-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          {filteredEvents.map((event) => (
+            <ActivityItem
+              key={event.id}
+              event={event}
+              runs={runs}
+              stopRun={stopRun}
+              resumeRun={resumeRun}
+            />
+          ))}
         </div>
       </ScrollArea>
     </div>
