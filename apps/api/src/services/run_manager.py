@@ -99,6 +99,8 @@ class RunManager:
         os.makedirs(run_dir, exist_ok=True)
         metrics_file = os.path.join(run_dir, "metrics.jsonl")
         print(f"[Monitor] Metrics file: {metrics_file}")
+        
+        best_reward = -float('inf')
 
         try:
             while True:
@@ -122,6 +124,12 @@ class RunManager:
 
                     if msg_type == "metric":
                          print(f"[Monitor] Broadcasting metric: step={msg.get('step')}, fps={msg.get('fps')}")
+                         
+                         # Update local tracker
+                         rec_best = msg.get("best_reward", -float('inf'))
+                         if rec_best > best_reward:
+                             best_reward = rec_best
+                         
                          self._emit_event(run_id, msg)
 
                          # Save to JSONL
@@ -130,6 +138,29 @@ class RunManager:
                                  f.write(json.dumps(msg) + "\n")
                          except Exception as e:
                              print(f"[Monitor] Failed to save metric: {e}")
+                    
+                    elif msg_type == "sb3_metric":
+                        data = msg.get("data", {})
+                        
+                        normalized = {
+                            "type": "metric",
+                            "step": msg.get("step"),
+                            "timestamp": msg.get("timestamp"),
+                            "fps": data.get("time/fps", 0),
+                            "avg_reward": data.get("rollout/ep_rew_mean", 0),
+                            "reward": 0, # Placeholder
+                            "best_reward": best_reward,
+                            "details": data
+                        }
+                        
+                        print(f"[Monitor] SB3 Metric: step={normalized['step']}")
+                        self._emit_event(run_id, normalized)
+                        
+                        try:
+                            with open(metrics_file, "a") as f:
+                                f.write(json.dumps(normalized) + "\n")
+                        except Exception as e:
+                            print(f"[Monitor] Failed to save metric: {e}")
                          
                     elif msg_type == "status":
                         status = msg.get("status")

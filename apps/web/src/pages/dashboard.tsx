@@ -1,11 +1,11 @@
-import { Link } from "@tanstack/react-router"
-import { Plus, Square, Activity, Clock, Trophy, Zap } from "lucide-react"
+import { Square, Activity, Clock, Trophy, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Page, PageHeader, PageTitle, PageDescription, PageActions, PageContent } from "@/components/ui/page"
 import { useRuns, useStopRun, useRunStats, useBulkStopRuns, useAggregatedRunMetrics } from "@/hooks"
 import { StatCard } from "@/components/shared"
 import { ActiveRunsTable, ActivityFeed } from "@/components/dashboard"
+import { NewRunDialog } from "@/components/runs/new-run-dialog"
 
 export function DashboardPage() {
   const { data: runs = [], isLoading } = useRuns()
@@ -22,12 +22,7 @@ export function DashboardPage() {
           <PageDescription>Training overview</PageDescription>
         </div>
         <PageActions>
-          <Button asChild>
-            <Link to="/roms">
-              <Plus className="size-4" />
-              New Run
-            </Link>
-          </Button>
+          <NewRunDialog />
         </PageActions>
       </PageHeader>
 

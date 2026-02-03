@@ -3,10 +3,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Play } from "lucide-react"
+import { Play, Settings2 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { StatusBadge } from "@/components/shared"
 import type { Rom, Run } from "@/lib/schemas"
+import { NewRunDialog } from "@/components/runs/new-run-dialog"
 
 interface RomDetailSheetProps {
   rom: Rom | undefined
@@ -68,14 +69,28 @@ export function RomDetailSheet({
           </div>
 
           {/* Start Button */}
-          <Button
-            className="w-full"
-            disabled={!selectedState || isStartingRun}
-            onClick={onStartRun}
-          >
-            <Play className="size-4" />
-            {isStartingRun ? "Starting..." : "Start Training"}
-          </Button>
+          <div className="grid grid-cols-1 gap-2">
+            <Button
+              className="w-full"
+              disabled={!selectedState || isStartingRun}
+              onClick={onStartRun}
+            >
+              <Play className="size-4 mr-2" />
+              {isStartingRun ? "Starting..." : "Quick Start"}
+            </Button>
+
+            {rom && (
+              <NewRunDialog
+                initialValues={{ rom: rom.id, state: selectedState || undefined }}
+                trigger={
+                  <Button variant="outline" className="w-full" disabled={!rom}>
+                    <Settings2 className="size-4 mr-2" />
+                    Configure Run...
+                  </Button>
+                }
+              />
+            )}
+          </div>
 
           {/* Recent Runs */}
           <RecentRunsTable runs={recentRuns} />

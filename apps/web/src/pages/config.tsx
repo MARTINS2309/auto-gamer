@@ -6,17 +6,16 @@ import { useEmulators, useConfigForm } from "@/hooks"
 import { SystemSettingsCard } from "@/components/config/system-settings-card"
 import { AlgorithmDefaultsCard } from "@/components/config/algorithm-defaults-card"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
-import type { RunHyperparams } from "@/lib/schemas"
-
 export function ConfigPage() {
   const { data: emulators = [] } = useEmulators()
   const { formData, isSaving, isDirty, isLoading, handleChange, handleSave, handleReset } = useConfigForm()
 
   const hparams = formData.default_hyperparams || {}
+  const algorithm = formData.default_algorithm || "PPO"
 
-  const updateHParam = (key: keyof RunHyperparams, val: number) => {
-    // Cast needed as schema might be optional in partial updates
-    handleChange("default_hyperparams", { ...hparams, [key]: val } as RunHyperparams)
+  const updateHParam = (key: string, val: number | boolean) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    handleChange("default_hyperparams", { ...hparams, [key]: val } as any)
   }
 
   if (isLoading) {
@@ -70,6 +69,7 @@ export function ConfigPage() {
 
         {/* Hyperparameters */}
         <HyperparametersCard
+          algorithm={algorithm}
           hparams={hparams}
           onChange={updateHParam}
         />

@@ -5,21 +5,21 @@ import json
 import os
 
 from ..models.db import DATA_DIR
-from ..models.schemas import RunHyperparams
+from ..models.schemas import RunHyperparams, Algorithm, Device
 
 CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 
 class GlobalConfig(BaseModel):
     # System Settings
-    default_device: str = Field("cuda", description="Preferred device for training (cpu/cuda)")
-    max_concurrent_runs: int = Field(1, description="Maximum number of parallel training sessions")
-    storage_path: str = Field("./data", description="Root path for storing run data")
-    
+    default_device: Device = Field(Device.AUTO, description="Preferred device for training (auto/cuda/cpu)")
+    max_concurrent_runs: int = Field(1, ge=1, le=16, description="Maximum number of parallel training sessions")
+    storage_path: str = Field("./data", min_length=1, description="Root path for storing run data")
+
     # Paths & Integration
     roms_path: Optional[str] = Field(None, description="Default path to look for new ROMs to import")
-    
+
     # Default Run Configuration
-    default_algorithm: str = Field("PPO", description="Default algorithm selected in UI")
+    default_algorithm: Algorithm = Field(Algorithm.PPO, description="Default algorithm selected in UI")
     default_hyperparams: RunHyperparams = Field(default_factory=RunHyperparams, description="Default hyperparameters used when creating a new run")
 
 router = APIRouter()

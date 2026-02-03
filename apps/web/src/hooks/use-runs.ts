@@ -201,6 +201,7 @@ export function useRunMetrics(
           fps: data.fps,
           loss: data.loss,
           epsilon: data.epsilon,
+          details: data.details,
         }
         setMetrics(m)
         // Append to history, keeping it reasonable size?

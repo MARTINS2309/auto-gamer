@@ -24,7 +24,7 @@ export function SystemSettingsCard({ formData, emulators, onChange }: SystemSett
                 <CardContent className="space-y-6 pt-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <LabelWithTooltip tooltip="Preferred hardware acceleration. CUDA requires NVIDIA GPU drivers.">
+                            <LabelWithTooltip tooltip="Preferred hardware acceleration. Supports CUDA (NVIDIA), ROCm (AMD), and MPS (Apple Silicon).">
                                 Compute Device
                             </LabelWithTooltip>
                             <Select
@@ -36,7 +36,7 @@ export function SystemSettingsCard({ formData, emulators, onChange }: SystemSett
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="auto">Auto (Detect)</SelectItem>
-                                    <SelectItem value="cuda">CUDA (NVIDIA/ROCm)</SelectItem>
+                                    <SelectItem value="cuda">CUDA / ROCm (NVIDIA/AMD)</SelectItem>
                                     <SelectItem value="mps">MPS (Apple Silicon)</SelectItem>
                                     <SelectItem value="cpu">CPU (Slower)</SelectItem>
                                 </SelectContent>

@@ -129,7 +129,7 @@ async def stop_run(run_id: str, db: Session = Depends(get_db)):
     db.refresh(run)
     return run
 
-@router.get("/{run_id}/metrics", response_model=List[MetricPoint])
+@router.get("/runs/{run_id}/metrics", response_model=List[MetricPoint])
 async def get_run_metrics(run_id: str, db: Session = Depends(get_db)):
     """
     Get historical metrics for a run.

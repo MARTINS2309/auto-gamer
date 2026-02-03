@@ -7,9 +7,12 @@ import multiprocessing
 import os
 import traceback
 import torch
+import sys
 
 from .wrappers import make_retro_env
 from .callbacks import BroadcastingCallback
+from .logging_utils import QueueWriter
+from stable_baselines3.common.logger import Logger, HumanOutputFormat, CSVOutputFormat
 
 def training_worker(run_id: str, config: dict, queue: multiprocessing.Queue):
     """
@@ -105,7 +108,21 @@ def training_worker(run_id: str, config: dict, queue: multiprocessing.Queue):
             
         print(f"[{run_id}] Using device: {device}")
         
+        # Configure Custom Logger
+        log_dir = f"./data/runs/{run_id}/logs"
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # Define output formats: Stdout, CSV, and our QueueWriter for the frontend
+        output_formats = [
+            HumanOutputFormat(sys.stdout),
+            CSVOutputFormat(os.path.join(log_dir, "progress.csv")),
+            QueueWriter(queue)
+        ]
+        
+        custom_logger = Logger(log_dir, output_formats)
+        
         model = AlgoClass("CnnPolicy", env, device=device, **model_kwargs)
+        model.set_logger(custom_logger)
         
         # Callbacks
         # Configurable frequencies

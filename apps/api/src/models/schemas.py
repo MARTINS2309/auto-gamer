@@ -20,6 +20,7 @@ class Algorithm(str, Enum):
 
 
 class Device(str, Enum):
+    AUTO = "auto"
     CUDA = "cuda"
     CPU = "cpu"
 
@@ -39,17 +40,81 @@ class RewardShaping(str, Enum):
     DEFAULT = "default"
 
 
+# =============================================================================
+# Algorithm-Specific Hyperparameters (from SB3 documentation)
+# https://stable-baselines3.readthedocs.io/en/master/
+# =============================================================================
+
+
+class PPOHyperparams(BaseModel):
+    """PPO hyperparameters from SB3 documentation."""
+    learning_rate: float = Field(default=0.0003, gt=0, description="Learning rate")
+    n_steps: int = Field(default=2048, ge=1, description="Steps per environment per update")
+    batch_size: int = Field(default=64, ge=1, description="Minibatch size")
+    n_epochs: int = Field(default=10, ge=1, description="Number of epochs per update")
+    gamma: float = Field(default=0.99, ge=0, le=1, description="Discount factor")
+    gae_lambda: float = Field(default=0.95, ge=0, le=1, description="GAE lambda for bias-variance tradeoff")
+    clip_range: float = Field(default=0.2, ge=0, le=1, description="Clipping parameter")
+    clip_range_vf: Optional[float] = Field(default=None, ge=0, le=1, description="Value function clipping")
+    normalize_advantage: bool = Field(default=True, description="Normalize advantages")
+    ent_coef: float = Field(default=0.0, ge=0, description="Entropy coefficient")
+    vf_coef: float = Field(default=0.5, ge=0, description="Value function coefficient")
+    max_grad_norm: float = Field(default=0.5, ge=0, description="Max gradient clipping")
+    use_sde: bool = Field(default=False, description="Use State Dependent Exploration")
+    sde_sample_freq: int = Field(default=-1, ge=-1, description="SDE noise sampling frequency")
+    target_kl: Optional[float] = Field(default=None, gt=0, description="KL divergence limit")
+
+
+class A2CHyperparams(BaseModel):
+    """A2C hyperparameters from SB3 documentation."""
+    learning_rate: float = Field(default=0.0007, gt=0, description="Learning rate")
+    n_steps: int = Field(default=5, ge=1, description="Steps per environment per update")
+    gamma: float = Field(default=0.99, ge=0, le=1, description="Discount factor")
+    gae_lambda: float = Field(default=1.0, ge=0, le=1, description="GAE lambda (1.0 = classic advantage)")
+    ent_coef: float = Field(default=0.0, ge=0, description="Entropy coefficient")
+    vf_coef: float = Field(default=0.5, ge=0, description="Value function coefficient")
+    max_grad_norm: float = Field(default=0.5, ge=0, description="Max gradient clipping")
+    rms_prop_eps: float = Field(default=1e-5, gt=0, description="RMSProp epsilon")
+    use_rms_prop: bool = Field(default=True, description="Use RMSprop vs Adam")
+    use_sde: bool = Field(default=False, description="Use State Dependent Exploration")
+    sde_sample_freq: int = Field(default=-1, ge=-1, description="SDE noise sampling frequency")
+    normalize_advantage: bool = Field(default=False, description="Normalize advantages")
+
+
+class DQNHyperparams(BaseModel):
+    """DQN hyperparameters from SB3 documentation."""
+    learning_rate: float = Field(default=0.0001, gt=0, description="Learning rate")
+    buffer_size: int = Field(default=1_000_000, ge=1, description="Replay buffer size")
+    learning_starts: int = Field(default=100, ge=0, description="Steps before learning")
+    batch_size: int = Field(default=32, ge=1, description="Minibatch size")
+    tau: float = Field(default=1.0, ge=0, le=1, description="Soft update coefficient")
+    gamma: float = Field(default=0.99, ge=0, le=1, description="Discount factor")
+    train_freq: int = Field(default=4, ge=1, description="Update frequency in steps")
+    gradient_steps: int = Field(default=1, ge=-1, description="Gradient steps (-1 for auto)")
+    target_update_interval: int = Field(default=10_000, ge=1, description="Target network update frequency")
+    exploration_fraction: float = Field(default=0.1, ge=0, le=1, description="Training fraction for exploration decay")
+    exploration_initial_eps: float = Field(default=1.0, ge=0, le=1, description="Initial exploration rate")
+    exploration_final_eps: float = Field(default=0.05, ge=0, le=1, description="Final exploration rate")
+    max_grad_norm: float = Field(default=10.0, ge=0, description="Max gradient clipping")
+
+
+# Union type for algorithm-specific hyperparameters
+Hyperparams = Union[PPOHyperparams, A2CHyperparams, DQNHyperparams]
+
+
+# Legacy compatibility - maps to PPO defaults
 class RunHyperparams(BaseModel):
-    learning_rate: float = Field(default=0.0003, ge=1e-7, le=1)
-    n_steps: int = Field(default=2048, ge=1, le=16384)
-    batch_size: int = Field(default=64, ge=1, le=1024)
-    n_epochs: int = Field(default=10, ge=1, le=100)
+    """Legacy hyperparams model - use algorithm-specific models for new code."""
+    learning_rate: float = Field(default=0.0003, gt=0)
+    n_steps: int = Field(default=2048, ge=1)
+    batch_size: int = Field(default=64, ge=1)
+    n_epochs: int = Field(default=10, ge=1)
     gamma: float = Field(default=0.99, ge=0, le=1)
     gae_lambda: float = Field(default=0.95, ge=0, le=1)
     clip_range: float = Field(default=0.2, ge=0, le=1)
-    ent_coef: float = Field(default=0.0, ge=0, le=1)
-    vf_coef: float = Field(default=0.5, ge=0, le=1)
-    max_grad_norm: float = Field(default=0.5, ge=0, le=10)
+    ent_coef: float = Field(default=0.0, ge=0)
+    vf_coef: float = Field(default=0.5, ge=0)
+    max_grad_norm: float = Field(default=0.5, ge=0)
 
 
 class RunConfig(BaseModel):

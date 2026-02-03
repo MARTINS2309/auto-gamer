@@ -38,7 +38,12 @@ import { useRoms, useCreateRun, useRomStates } from "@/hooks"
 import { RunCreateSchema, DEFAULT_HYPERPARAMS } from "@/lib/schemas"
 import type { RunCreateInput } from "@/lib/schemas"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
-import type { RunHyperparams } from "@/lib/schemas"
+import type { Algorithm } from "@/lib/schemas"
+
+interface NewRunDialogProps {
+    trigger?: React.ReactNode
+    initialValues?: Partial<RunCreateInput>
+}
 
 function StateSelector({ form, romId }: { form: any, romId: string }) {
     const { data: states = [], isLoading } = useRomStates(romId)
@@ -76,7 +81,7 @@ function StateSelector({ form, romId }: { form: any, romId: string }) {
     )
 }
 
-export function NewRunDialog() {
+export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
     const [open, setOpen] = useState(false)
     const { data: roms = [] } = useRoms()
     const createRun = useCreateRun()
@@ -90,8 +95,12 @@ export function NewRunDialog() {
             hyperparams: DEFAULT_HYPERPARAMS,
             checkpoint_interval: 50_000,
             frame_capture_interval: 10_000,
+            ...initialValues
         },
     })
+
+    // Reset form when initialValues change or dialog opens
+    // (Optional but good practice if controlled externally)
 
     // Filter playable roms
     const playableRoms = roms.filter(r => r.playable)
@@ -107,18 +116,22 @@ export function NewRunDialog() {
     }
 
     const currentHParams = form.watch("hyperparams")
+    const selectedAlgorithm = form.watch("algorithm") as Algorithm
 
-    const handleHParamChange = (key: keyof RunHyperparams, value: number) => {
-        form.setValue(`hyperparams.${key}`, value, { shouldDirty: true, shouldValidate: true })
+    const handleHParamChange = (key: string, value: number | boolean) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        form.setValue(`hyperparams.${key}` as any, value, { shouldDirty: true, shouldValidate: true })
     }
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Run
-                </Button>
+                {trigger || (
+                    <Button>
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Run
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -223,6 +236,7 @@ export function NewRunDialog() {
 
                         <div className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-900/50">
                             <HyperparametersCard
+                                algorithm={selectedAlgorithm}
                                 hparams={currentHParams || DEFAULT_HYPERPARAMS}
                                 onChange={handleHParamChange}
                             />

@@ -17,7 +17,7 @@ export type RunStatus = z.infer<typeof RunStatusSchema>
 export const AlgorithmSchema = z.enum(["PPO", "A2C", "DQN"])
 export type Algorithm = z.infer<typeof AlgorithmSchema>
 
-export const DeviceSchema = z.enum(["cuda", "cpu"])
+export const DeviceSchema = z.enum(["auto", "cuda", "cpu", "mps"])
 export type Device = z.infer<typeof DeviceSchema>
 
 export const ObservationTypeSchema = z.enum(["image", "ram"])
@@ -54,18 +54,75 @@ export type RomImportResponse = z.infer<typeof RomImportResponseSchema>
 // Run Schemas
 // =============================================================================
 
-// Hyperparams schema matching backend defaults with constraints
-export const RunHyperparamsSchema = z.object({
-  learning_rate: z.number().min(1e-7).max(1).default(0.0003),
-  n_steps: z.number().int().min(1).max(16384).default(2048),
-  batch_size: z.number().int().min(1).max(1024).default(64),
-  n_epochs: z.number().int().min(1).max(100).default(10),
+// =============================================================================
+// Algorithm-Specific Hyperparameters (from SB3 documentation)
+// https://stable-baselines3.readthedocs.io/en/master/
+// =============================================================================
+
+export const PPOHyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.0003),
+  n_steps: z.number().int().min(1).default(2048),
+  batch_size: z.number().int().min(1).default(64),
+  n_epochs: z.number().int().min(1).default(10),
   gamma: z.number().min(0).max(1).default(0.99),
   gae_lambda: z.number().min(0).max(1).default(0.95),
   clip_range: z.number().min(0).max(1).default(0.2),
-  ent_coef: z.number().min(0).max(1).default(0.0),
-  vf_coef: z.number().min(0).max(1).default(0.5),
-  max_grad_norm: z.number().min(0).max(10).default(0.5),
+  clip_range_vf: z.number().min(0).max(1).nullable().optional(),
+  normalize_advantage: z.boolean().default(true),
+  ent_coef: z.number().min(0).default(0.0),
+  vf_coef: z.number().min(0).default(0.5),
+  max_grad_norm: z.number().min(0).default(0.5),
+  use_sde: z.boolean().default(false),
+  sde_sample_freq: z.number().int().min(-1).default(-1),
+  target_kl: z.number().positive().nullable().optional(),
+})
+export type PPOHyperparams = z.infer<typeof PPOHyperparamsSchema>
+
+export const A2CHyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.0007),
+  n_steps: z.number().int().min(1).default(5),
+  gamma: z.number().min(0).max(1).default(0.99),
+  gae_lambda: z.number().min(0).max(1).default(1.0),
+  ent_coef: z.number().min(0).default(0.0),
+  vf_coef: z.number().min(0).default(0.5),
+  max_grad_norm: z.number().min(0).default(0.5),
+  rms_prop_eps: z.number().positive().default(1e-5),
+  use_rms_prop: z.boolean().default(true),
+  use_sde: z.boolean().default(false),
+  sde_sample_freq: z.number().int().min(-1).default(-1),
+  normalize_advantage: z.boolean().default(false),
+})
+export type A2CHyperparams = z.infer<typeof A2CHyperparamsSchema>
+
+export const DQNHyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.0001),
+  buffer_size: z.number().int().min(1).default(1_000_000),
+  learning_starts: z.number().int().min(0).default(100),
+  batch_size: z.number().int().min(1).default(32),
+  tau: z.number().min(0).max(1).default(1.0),
+  gamma: z.number().min(0).max(1).default(0.99),
+  train_freq: z.number().int().min(1).default(4),
+  gradient_steps: z.number().int().min(-1).default(1),
+  target_update_interval: z.number().int().min(1).default(10_000),
+  exploration_fraction: z.number().min(0).max(1).default(0.1),
+  exploration_initial_eps: z.number().min(0).max(1).default(1.0),
+  exploration_final_eps: z.number().min(0).max(1).default(0.05),
+  max_grad_norm: z.number().min(0).default(10.0),
+})
+export type DQNHyperparams = z.infer<typeof DQNHyperparamsSchema>
+
+// Legacy compatibility - maps to PPO defaults
+export const RunHyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.0003),
+  n_steps: z.number().int().min(1).default(2048),
+  batch_size: z.number().int().min(1).default(64),
+  n_epochs: z.number().int().min(1).default(10),
+  gamma: z.number().min(0).max(1).default(0.99),
+  gae_lambda: z.number().min(0).max(1).default(0.95),
+  clip_range: z.number().min(0).max(1).default(0.2),
+  ent_coef: z.number().min(0).default(0.0),
+  vf_coef: z.number().min(0).default(0.5),
+  max_grad_norm: z.number().min(0).default(0.5),
 })
 export type RunHyperparams = z.infer<typeof RunHyperparamsSchema>
 
@@ -84,9 +141,9 @@ export const RunSchema = z.object({
   observation_type: ObservationTypeSchema,
   action_space: ActionSpaceSchema,
   status: RunStatusSchema,
-  created_at: z.string().datetime(),
-  started_at: z.string().datetime().nullable().optional(),
-  completed_at: z.string().datetime().nullable().optional(),
+  created_at: z.string(), // ISO datetime string from Python
+  started_at: z.string().nullable().optional(),
+  completed_at: z.string().nullable().optional(),
   pid: z.number().int().positive().nullable().optional(),
   error: z.string().nullable().optional(),
 })
@@ -94,7 +151,57 @@ export type Run = z.infer<typeof RunSchema>
 
 export const RunListSchema = z.array(RunSchema)
 
-// Default hyperparams values
+// Default hyperparams by algorithm (from SB3 documentation)
+export const DEFAULT_PPO_HYPERPARAMS: PPOHyperparams = {
+  learning_rate: 0.0003,
+  n_steps: 2048,
+  batch_size: 64,
+  n_epochs: 10,
+  gamma: 0.99,
+  gae_lambda: 0.95,
+  clip_range: 0.2,
+  clip_range_vf: null,
+  normalize_advantage: true,
+  ent_coef: 0.0,
+  vf_coef: 0.5,
+  max_grad_norm: 0.5,
+  use_sde: false,
+  sde_sample_freq: -1,
+  target_kl: null,
+}
+
+export const DEFAULT_A2C_HYPERPARAMS: A2CHyperparams = {
+  learning_rate: 0.0007,
+  n_steps: 5,
+  gamma: 0.99,
+  gae_lambda: 1.0,
+  ent_coef: 0.0,
+  vf_coef: 0.5,
+  max_grad_norm: 0.5,
+  rms_prop_eps: 1e-5,
+  use_rms_prop: true,
+  use_sde: false,
+  sde_sample_freq: -1,
+  normalize_advantage: false,
+}
+
+export const DEFAULT_DQN_HYPERPARAMS: DQNHyperparams = {
+  learning_rate: 0.0001,
+  buffer_size: 1_000_000,
+  learning_starts: 100,
+  batch_size: 32,
+  tau: 1.0,
+  gamma: 0.99,
+  train_freq: 4,
+  gradient_steps: 1,
+  target_update_interval: 10_000,
+  exploration_fraction: 0.1,
+  exploration_initial_eps: 1.0,
+  exploration_final_eps: 0.05,
+  max_grad_norm: 10.0,
+}
+
+// Legacy compatibility alias
 export const DEFAULT_HYPERPARAMS = {
   learning_rate: 0.0003,
   n_steps: 2048,
@@ -134,6 +241,7 @@ export const RunMetricsSchema = z.object({
   fps: z.number().min(0),
   loss: z.number().optional(),
   epsilon: z.number().min(0).max(1).optional(),
+  details: z.record(z.string(), z.any()).optional(),
 })
 export type RunMetrics = z.infer<typeof RunMetricsSchema>
 

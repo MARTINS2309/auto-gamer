@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Play, Square } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import type { Run } from "@/lib/schemas"
+import { NewRunDialog } from "@/components/runs/new-run-dialog"
 
 interface ActiveRunsTableProps {
   runs: Run[]
@@ -21,9 +22,13 @@ export function ActiveRunsTable({ runs, isLoading, onStopRun }: ActiveRunsTableP
       <div className="text-center py-8 text-muted-foreground">
         <Play className="size-8 mx-auto mb-2 opacity-50" />
         <p>No active runs</p>
-        <Link to="/roms" className="text-primary hover:underline text-sm">
-          Start a new run
-        </Link>
+        <NewRunDialog
+          trigger={
+            <Button variant="link" className="text-primary hover:underline text-sm p-0 h-auto">
+              Start a new run
+            </Button>
+          }
+        />
       </div>
     )
   }
