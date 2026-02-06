@@ -1,37 +1,105 @@
 import { useState, useMemo } from "react"
-import { Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Page, PageHeader, PageTitle, PageDescription, PageContent } from "@/components/ui/page"
-import { useRoms, useRom, useImportRoms, useRunsByRom, useCreateRun } from "@/hooks"
-import { RomGrid, RomImportCard, RomDetailSheet } from "@/components/roms"
-import type { Rom } from "@/lib/schemas"
+import { Search, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Page,
+  PageHeader,
+  PageHeaderNav,
+  PageHeaderItem,
+  PageTitle,
+  PageContent,
+} from "@/components/ui/page"
+import { Badge } from "@/components/ui/badge"
+import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { useRoms, useRom, useRunsByRom, useCreateRun } from "@/hooks"
+import { RomGrid, RomDetailSheet } from "@/components/roms"
+import type { RomListItem } from "@/lib/schemas"
 
-function useRomFilters(roms: Rom[]) {
+function useRomFilters(roms: RomListItem[]) {
   const [search, setSearch] = useState("")
   const [system, setSystem] = useState<string>("all")
+  const [genre, setGenre] = useState<string>("all")
+  const [developer, setDeveloper] = useState<string>("all")
+  const [minRating, setMinRating] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
 
-  const systems = [...new Set(roms.map((r) => r.system))]
+  const systems = useMemo(() =>
+    [...new Set(roms.map((r) => r.system))].sort(),
+    [roms]
+  )
 
-  const filteredRoms = roms.filter((rom) => {
-    const matchesSearch = rom.name.toLowerCase().includes(search.toLowerCase())
-    const matchesSystem = system === "all" || rom.system === system
-    return matchesSearch && matchesSystem
-  })
+  const genres = useMemo(() => {
+    const allGenres = roms.flatMap((r) => r.genres ?? [])
+    return [...new Set(allGenres)].sort()
+  }, [roms])
+
+  const developers = useMemo(() => {
+    const allDevs = roms.map((r) => r.developer).filter(Boolean) as string[]
+    return [...new Set(allDevs)].sort()
+  }, [roms])
+
+  const filteredRoms = useMemo(() => {
+    return roms.filter((rom) => {
+      const matchesSearch = rom.display_name.toLowerCase().includes(search.toLowerCase())
+      const matchesSystem = system === "all" || rom.system === system
+      const matchesGenre = genre === "all" || (rom.genres ?? []).includes(genre)
+      const matchesDeveloper = developer === "all" || rom.developer === developer
+      const matchesRating = minRating === "all" || (rom.rating ?? 0) >= parseInt(minRating)
+      const matchesStatus = statusFilter === "all" || rom.status === statusFilter
+      return matchesSearch && matchesSystem && matchesGenre && matchesDeveloper && matchesRating && matchesStatus
+    })
+  }, [roms, search, system, genre, developer, minRating, statusFilter])
+
+  const activeFilterCount = [system, genre, developer, minRating, statusFilter].filter(v => v !== "all").length
+
+  const clearFilters = () => {
+    setSystem("all")
+    setGenre("all")
+    setDeveloper("all")
+    setMinRating("all")
+    setStatusFilter("all")
+    setSearch("")
+  }
 
   return {
     search,
     setSearch,
     system,
     setSystem,
+    genre,
+    setGenre,
+    developer,
+    setDeveloper,
+    minRating,
+    setMinRating,
+    statusFilter,
+    setStatusFilter,
     systems,
+    genres,
+    developers,
     filteredRoms,
+    activeFilterCount,
+    clearFilters,
   }
 }
 
 export function RomsPage() {
-  const { data: roms = [], isLoading } = useRoms()
-  const importRoms = useImportRoms()
+  const [showConnectors, setShowConnectors] = useState(false)
+  const { data: roms = [], isLoading } = useRoms(showConnectors)
   const createRun = useCreateRun()
 
   const [selectedRomId, setSelectedRomId] = useState<string | null>(null)
@@ -42,7 +110,6 @@ export function RomsPage() {
 
   const filters = useRomFilters(roms)
 
-  // Derive selected state: use user selection, or default to first state
   const selectedState = useMemo(() => {
     if (userSelectedState) return userSelectedState
     return romDetails?.states?.[0] ?? ""
@@ -50,7 +117,7 @@ export function RomsPage() {
 
   const handleSelectRom = (id: string) => {
     setSelectedRomId(id)
-    setUserSelectedState(null) // Reset to auto-select first state
+    setUserSelectedState(null)
   }
 
   const handleCloseSheet = () => {
@@ -65,52 +132,140 @@ export function RomsPage() {
 
   return (
     <Page>
-      <PageHeader>
-        <PageTitle>ROM Library</PageTitle>
-        <PageDescription>Browse and train on your games</PageDescription>
+      <PageHeader hideOnScroll={false}>
+        <PageHeaderNav>
+          <PageHeaderItem>
+            <PageTitle>ROM Library</PageTitle>
+          </PageHeaderItem>
+
+          <PageHeaderItem>
+            <ButtonGroup>
+              <ButtonGroup className="flex-1 min-w-64">
+                <InputGroup>
+                  <InputGroupAddon>
+                    <Search />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    placeholder="Search ROMs..."
+                    value={filters.search}
+                    onChange={(e) => filters.setSearch(e.target.value)}
+                  />
+                </InputGroup>
+              </ButtonGroup>
+
+              <ButtonGroupSeparator />
+
+              <ButtonGroup>
+                <Select value={filters.system} onValueChange={filters.setSystem}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="Platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Platforms</SelectItem>
+                    {filters.systems.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </ButtonGroup>
+
+              <ButtonGroup>
+                <Select value={filters.genre} onValueChange={filters.setGenre}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="Genre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Genres</SelectItem>
+                    {filters.genres.map((g) => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </ButtonGroup>
+
+              <ButtonGroup>
+                <Select value={filters.developer} onValueChange={filters.setDeveloper}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Developer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Developers</SelectItem>
+                    {filters.developers.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </ButtonGroup>
+
+              <ButtonGroup>
+                <Select value={filters.minRating} onValueChange={filters.setMinRating}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue placeholder="Rating" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Ratings</SelectItem>
+                    <SelectItem value="80">80+</SelectItem>
+                    <SelectItem value="70">70+</SelectItem>
+                    <SelectItem value="60">60+</SelectItem>
+                    <SelectItem value="50">50+</SelectItem>
+                  </SelectContent>
+                </Select>
+              </ButtonGroup>
+
+              <ButtonGroup>
+                <Select value={filters.statusFilter} onValueChange={filters.setStatusFilter}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Games</SelectItem>
+                    <SelectItem value="trainable">Ready to Train</SelectItem>
+                    <SelectItem value="playable">Playable Only</SelectItem>
+                    <SelectItem value="connector_only">Need ROM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </ButtonGroup>
+
+              {filters.activeFilterCount > 0 && (
+                <ButtonGroup>
+                  <Button
+                    variant="ghost"
+                    onClick={filters.clearFilters}
+                    className="text-muted-foreground"
+                  >
+                    <X className="size-4 mr-1" />
+                    Clear ({filters.activeFilterCount})
+                  </Button>
+                </ButtonGroup>
+              )}
+            </ButtonGroup>
+          </PageHeaderItem>
+
+          <PageHeaderItem className="ml-auto flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-connectors"
+                checked={showConnectors}
+                onCheckedChange={setShowConnectors}
+              />
+              <Label htmlFor="show-connectors" className="text-sm text-muted-foreground cursor-pointer">
+                Show Connectors
+              </Label>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {filters.filteredRoms.length} of {roms.length}
+            </Badge>
+          </PageHeaderItem>
+        </PageHeaderNav>
       </PageHeader>
 
-      <PageContent className="space-y-6">
-        {/* Import Section */}
-        <RomImportCard
-          onImport={importRoms.mutate}
-          isPending={importRoms.isPending}
-        />
-
-        {/* Filters */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="relative flex-1 min-w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search ROMs..."
-              value={filters.search}
-              onChange={(e) => filters.setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <ToggleGroup
-            type="single"
-            value={filters.system}
-            onValueChange={(v) => v && filters.setSystem(v)}
-          >
-            <ToggleGroupItem value="all">All</ToggleGroupItem>
-            {filters.systems.map((s) => (
-              <ToggleGroupItem key={s} value={s}>
-                {s}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-
-        {/* ROM Grid */}
+      <PageContent>
         <RomGrid
           roms={filters.filteredRoms}
           isLoading={isLoading}
           onSelectRom={handleSelectRom}
         />
 
-        {/* ROM Detail Sheet */}
         <RomDetailSheet
           rom={romDetails}
           isLoading={isLoadingDetails}

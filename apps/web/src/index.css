@@ -83,120 +83,120 @@
 :root {
   --radius: 0px;
 
-  /* Brutalist shadows - hard offset, softer opacity */
-  --shadow-2xs: 3px 3px 0px 0px oklch(0.20 0.01 155 / 0.35);
-  --shadow-xs: 3px 3px 0px 0px oklch(0.20 0.01 155 / 0.45);
-  --shadow-sm: 3px 3px 0px 0px oklch(0.20 0.01 155 / 0.55);
-  --shadow: 4px 4px 0px 0px oklch(0.20 0.01 155 / 0.55);
-  --shadow-md: 4px 4px 0px 0px oklch(0.20 0.01 155 / 0.6);
-  --shadow-lg: 4px 4px 0px 0px oklch(0.20 0.01 155 / 0.65);
-  --shadow-xl: 5px 5px 0px 0px oklch(0.20 0.01 155 / 0.7);
-  --shadow-2xl: 6px 6px 0px 0px oklch(0.20 0.01 155 / 0.75);
+  /* Soft warm shadows (not brutalist) */
+  --shadow-2xs: 0 1px 2px 0 oklch(0.20 0.01 80 / 0.08);
+  --shadow-xs: 0 1px 3px 0 oklch(0.20 0.01 80 / 0.10);
+  --shadow-sm: 0 2px 4px 0 oklch(0.20 0.01 80 / 0.12);
+  --shadow: 0 2px 8px 0 oklch(0.20 0.01 80 / 0.15);
+  --shadow-md: 0 4px 12px 0 oklch(0.20 0.01 80 / 0.15);
+  --shadow-lg: 0 6px 20px 0 oklch(0.20 0.01 80 / 0.12);
+  --shadow-xl: 0 8px 30px 0 oklch(0.20 0.01 80 / 0.10);
+  --shadow-2xl: 0 12px 40px 0 oklch(0.20 0.01 80 / 0.10);
 
-  /* Structural — aged paper (warm neutral, low chroma) */
-  --background: oklch(0.965 0.008 85);
-  --foreground: oklch(0.20 0.015 155);
-  --card: oklch(0.935 0.006 85);
-  --card-foreground: oklch(0.20 0.015 155);
-  --popover: oklch(0.945 0.006 85);
-  --popover-foreground: oklch(0.20 0.015 155);
-  --sidebar: oklch(0.925 0.008 85);
-  --sidebar-foreground: oklch(0.20 0.015 155);
+  /* Structural — warm parchment */
+  --background: oklch(0.96 0.015 85);
+  --foreground: oklch(0.20 0.02 150);
+  --card: oklch(0.94 0.012 85);
+  --card-foreground: oklch(0.20 0.02 150);
+  --popover: oklch(0.95 0.012 85);
+  --popover-foreground: oklch(0.20 0.02 150);
+  --sidebar: oklch(0.93 0.015 85);
+  --sidebar-foreground: oklch(0.20 0.02 150);
 
-  /* Primary — muted phosphor green (forest ink) */
-  --primary: oklch(0.40 0.10 155);
-  --primary-foreground: oklch(0.96 0.006 85);
+  /* Primary — muted phosphor green */
+  --primary: oklch(0.45 0.14 150);
+  --primary-foreground: oklch(0.96 0.01 85);
   /* Secondary — warm stone */
-  --secondary: oklch(0.88 0.012 80);
-  --secondary-foreground: oklch(0.30 0.015 155);
+  --secondary: oklch(0.88 0.015 80);
+  --secondary-foreground: oklch(0.30 0.02 150);
   /* Destructive — terracotta red */
-  --destructive: oklch(0.50 0.16 25);
-  --destructive-foreground: oklch(0.96 0.006 85);
-  /* Muted — soft gray */
-  --muted: oklch(0.91 0.006 80);
-  --muted-foreground: oklch(0.45 0.012 155);
+  --destructive: oklch(0.50 0.18 25);
+  --destructive-foreground: oklch(0.96 0.01 85);
+  /* Muted — soft warm gray */
+  --muted: oklch(0.90 0.01 80);
+  --muted-foreground: oklch(0.45 0.04 150);
   /* Accent — warm amber */
-  --accent: oklch(0.90 0.05 80);
-  --accent-foreground: oklch(0.32 0.08 75);
+  --accent: oklch(0.90 0.06 80);
+  --accent-foreground: oklch(0.32 0.10 75);
 
-  /* Utility — softer brutalist border */
-  --border: oklch(0.35 0.015 155);
-  --input: oklch(0.60 0.02 155);
-  --ring: oklch(0.40 0.10 155);
+  /* Utility — warm grey borders (not green) */
+  --border: oklch(0.75 0.02 80);
+  --input: oklch(0.80 0.015 80);
+  --ring: oklch(0.45 0.14 150);
 
-  /* Charts — balanced luminance L≈0.48-0.55 */
-  --chart-1: oklch(0.48 0.14 155);
-  --chart-2: oklch(0.52 0.16 25);
-  --chart-3: oklch(0.58 0.14 80);
-  --chart-4: oklch(0.50 0.12 235);
-  --chart-5: oklch(0.50 0.12 305);
+  /* Charts — muted but readable */
+  --chart-1: oklch(0.48 0.16 150);
+  --chart-2: oklch(0.52 0.18 25);
+  --chart-3: oklch(0.58 0.16 80);
+  --chart-4: oklch(0.50 0.14 235);
+  --chart-5: oklch(0.50 0.14 305);
 
   /* Sidebar */
-  --sidebar-primary: oklch(0.40 0.10 155);
-  --sidebar-primary-foreground: oklch(0.96 0.006 85);
-  --sidebar-accent: oklch(0.90 0.05 80);
-  --sidebar-accent-foreground: oklch(0.32 0.08 75);
-  --sidebar-border: oklch(0.35 0.015 155);
-  --sidebar-ring: oklch(0.40 0.10 155);
+  --sidebar-primary: oklch(0.45 0.14 150);
+  --sidebar-primary-foreground: oklch(0.96 0.01 85);
+  --sidebar-accent: oklch(0.90 0.06 80);
+  --sidebar-accent-foreground: oklch(0.32 0.10 75);
+  --sidebar-border: oklch(0.75 0.02 80);
+  --sidebar-ring: oklch(0.45 0.14 150);
 }
 
 /* DARK MODE — CRT void, phosphor glow */
 .dark {
-  /* Shadows — phosphor green glow (softer, more atmospheric) */
-  --shadow-2xs: 3px 3px 0px 0px oklch(0.68 0.16 155 / 0.12);
-  --shadow-xs: 3px 3px 0px 0px oklch(0.68 0.16 155 / 0.15);
-  --shadow-sm: 3px 3px 0px 0px oklch(0.68 0.16 155 / 0.18);
-  --shadow: 4px 4px 0px 0px oklch(0.68 0.16 155 / 0.20);
-  --shadow-md: 4px 4px 0px 0px oklch(0.68 0.16 155 / 0.22);
-  --shadow-lg: 4px 4px 0px 0px oklch(0.68 0.16 155 / 0.25);
-  --shadow-xl: 5px 5px 0px 0px oklch(0.68 0.16 155 / 0.28);
-  --shadow-2xl: 6px 6px 0px 0px oklch(0.68 0.16 155 / 0.35);
+  /* Shadows — phosphor bloom glow (soft radial, not hard offset) */
+  --shadow-2xs: 0 0 2px 0 oklch(0.72 0.22 150 / 0.15);
+  --shadow-xs: 0 0 4px 1px oklch(0.72 0.22 150 / 0.12);
+  --shadow-sm: 0 0 8px 2px oklch(0.72 0.22 150 / 0.10);
+  --shadow: 0 0 12px 3px oklch(0.72 0.22 150 / 0.08);
+  --shadow-md: 0 0 20px 5px oklch(0.72 0.22 150 / 0.08);
+  --shadow-lg: 0 0 30px 8px oklch(0.72 0.22 150 / 0.06);
+  --shadow-xl: 0 0 40px 12px oklch(0.72 0.22 150 / 0.05);
+  --shadow-2xl: 0 0 60px 20px oklch(0.72 0.22 150 / 0.04);
 
-  /* Structural — CRT void (deep blue-black) */
-  --background: oklch(0.12 0.015 265);
-  --foreground: oklch(0.86 0.025 155);
-  --card: oklch(0.18 0.012 265);
-  --card-foreground: oklch(0.86 0.025 155);
-  --popover: oklch(0.16 0.012 265);
-  --popover-foreground: oklch(0.86 0.025 155);
-  --sidebar: oklch(0.10 0.015 265);
-  --sidebar-foreground: oklch(0.86 0.025 155);
+  /* Structural — CRT void (deeper blue-black) */
+  --background: oklch(0.08 0.02 265);
+  --foreground: oklch(0.86 0.03 155);
+  --card: oklch(0.12 0.015 265);
+  --card-foreground: oklch(0.86 0.03 155);
+  --popover: oklch(0.10 0.015 265);
+  --popover-foreground: oklch(0.86 0.03 155);
+  --sidebar: oklch(0.06 0.02 265);
+  --sidebar-foreground: oklch(0.86 0.03 155);
 
-  /* Primary — bright phosphor green (L+0.28 vs light) */
-  --primary: oklch(0.68 0.16 155);
-  --primary-foreground: oklch(0.12 0.015 265);
+  /* Primary — bright P31 phosphor green */
+  --primary: oklch(0.72 0.22 150);
+  --primary-foreground: oklch(0.08 0.02 265);
   /* Secondary — terminal gray */
-  --secondary: oklch(0.25 0.012 265);
-  --secondary-foreground: oklch(0.78 0.02 155);
-  /* Destructive — CRT scan red (L+0.15 vs light) */
-  --destructive: oklch(0.62 0.20 25);
-  --destructive-foreground: oklch(0.12 0.015 265);
+  --secondary: oklch(0.20 0.015 265);
+  --secondary-foreground: oklch(0.75 0.04 155);
+  /* Destructive — CRT scan red */
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.08 0.02 265);
   /* Muted — dark gray */
-  --muted: oklch(0.20 0.008 265);
-  --muted-foreground: oklch(0.55 0.015 155);
+  --muted: oklch(0.16 0.01 265);
+  --muted-foreground: oklch(0.50 0.08 155);
   /* Accent — amber glow */
-  --accent: oklch(0.35 0.10 80);
-  --accent-foreground: oklch(0.90 0.08 80);
+  --accent: oklch(0.30 0.12 80);
+  --accent-foreground: oklch(0.88 0.10 80);
 
-  /* Utility — softer brutalist border (not pure foreground) */
-  --border: oklch(0.70 0.04 155);
-  --input: oklch(0.22 0.01 265);
-  --ring: oklch(0.68 0.16 155);
+  /* Utility — barely visible grid lines (not bright green) */
+  --border: oklch(0.25 0.02 265);
+  --input: oklch(0.15 0.015 265);
+  --ring: oklch(0.72 0.22 150);
 
-  /* Charts — vivid, balanced L≈0.65-0.70 */
-  --chart-1: oklch(0.68 0.16 155);
-  --chart-2: oklch(0.62 0.20 25);
-  --chart-3: oklch(0.70 0.14 80);
-  --chart-4: oklch(0.62 0.14 235);
-  --chart-5: oklch(0.62 0.14 305);
+  /* Charts — vivid phosphor palette */
+  --chart-1: oklch(0.72 0.22 150);
+  --chart-2: oklch(0.62 0.22 25);
+  --chart-3: oklch(0.72 0.16 80);
+  --chart-4: oklch(0.62 0.16 235);
+  --chart-5: oklch(0.62 0.16 305);
 
   /* Sidebar */
-  --sidebar-primary: oklch(0.68 0.16 155);
-  --sidebar-primary-foreground: oklch(0.12 0.015 265);
-  --sidebar-accent: oklch(0.35 0.10 80);
-  --sidebar-accent-foreground: oklch(0.90 0.08 80);
-  --sidebar-border: oklch(0.70 0.04 155);
-  --sidebar-ring: oklch(0.68 0.16 155);
+  --sidebar-primary: oklch(0.72 0.22 150);
+  --sidebar-primary-foreground: oklch(0.08 0.02 265);
+  --sidebar-accent: oklch(0.30 0.12 80);
+  --sidebar-accent-foreground: oklch(0.88 0.10 80);
+  --sidebar-border: oklch(0.25 0.02 265);
+  --sidebar-ring: oklch(0.72 0.22 150);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -305,18 +305,18 @@ body.reduce-motion * {
   }
   .dark .crt-scanlines {
     background:
-      /* Phosphor dots - greenish tint in dark mode */
-      radial-gradient(ellipse 1.5px 2px at 0px 0px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
-      radial-gradient(ellipse 1.5px 2px at 3px 0px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
-      radial-gradient(ellipse 1.5px 2px at 1.5px 3px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
-      radial-gradient(ellipse 1.5px 2px at 4.5px 3px, oklch(0.5 0.05 155 / 0.045) 50%, transparent 50%),
+      /* Phosphor dots - subtler greenish tint in dark mode */
+      radial-gradient(ellipse 1.5px 2px at 0px 0px, oklch(0.5 0.05 155 / 0.03) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 3px 0px, oklch(0.5 0.05 155 / 0.03) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 1.5px 3px, oklch(0.5 0.05 155 / 0.03) 50%, transparent 50%),
+      radial-gradient(ellipse 1.5px 2px at 4.5px 3px, oklch(0.5 0.05 155 / 0.03) 50%, transparent 50%),
       /* Scanline */
       repeating-linear-gradient(
         to bottom,
         transparent 0px,
         transparent 2px,
-        oklch(1 0 0 / 0.015) 2px,
-        oklch(1 0 0 / 0.015) 3px
+        oklch(1 0 0 / 0.012) 2px,
+        oklch(1 0 0 / 0.012) 3px
       );
     background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px, 100% 6px;
   }
@@ -342,15 +342,15 @@ body.reduce-motion * {
     100% { transform: translate(0px, 0px); }
   }
 
-  /* Layer 2: Vignette */
+  /* Layer 2: Vignette — darker edges for CRT tube depth */
   .crt-vignette {
     position: absolute;
     inset: 0;
     background: radial-gradient(
-      ellipse 80% 70% at 50% 50%,
-      transparent 50%,
-      oklch(0 0 0 / 0.15) 80%,
-      oklch(0 0 0 / 0.4) 100%
+      ellipse 75% 65% at 50% 50%,
+      transparent 40%,
+      oklch(0 0 0 / 0.25) 75%,
+      oklch(0 0 0 / 0.6) 100%
     );
   }
 
@@ -361,9 +361,9 @@ body.reduce-motion * {
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      oklch(0.40 0.10 155 / 0.015) 48%,
-      oklch(0.40 0.10 155 / 0.05) 50%,
-      oklch(0.40 0.10 155 / 0.015) 52%,
+      oklch(0.45 0.14 150 / 0.015) 48%,
+      oklch(0.45 0.14 150 / 0.05) 50%,
+      oklch(0.45 0.14 150 / 0.015) 52%,
       transparent 100%
     );
     background-size: 100% 300%;
@@ -373,9 +373,9 @@ body.reduce-motion * {
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      oklch(0.68 0.16 155 / 0.02) 48%,
-      oklch(0.68 0.16 155 / 0.06) 50%,
-      oklch(0.68 0.16 155 / 0.02) 52%,
+      oklch(0.72 0.22 150 / 0.025) 48%,
+      oklch(0.72 0.22 150 / 0.08) 50%,
+      oklch(0.72 0.22 150 / 0.025) 52%,
       transparent 100%
     );
     background-size: 100% 300%;
@@ -635,6 +635,11 @@ body.reduce-motion * {
   .animate-glitch {
     animation: interference 0.4s ease-out;
   }
+
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -651,5 +656,55 @@ body.reduce-motion * {
   .tracking-stat {
     letter-spacing: 0.1em;
     text-transform: uppercase;
+  }
+
+  /* Phosphor glow for interactive elements */
+  .glow-phosphor {
+    box-shadow:
+      0 0 5px 2px oklch(0.72 0.22 150 / 0.4),
+      0 0 15px 5px oklch(0.72 0.22 150 / 0.2),
+      0 0 30px 10px oklch(0.72 0.22 150 / 0.1);
+  }
+  .dark .glow-phosphor {
+    box-shadow:
+      0 0 5px 2px oklch(0.72 0.22 150 / 0.5),
+      0 0 15px 5px oklch(0.72 0.22 150 / 0.3),
+      0 0 30px 10px oklch(0.72 0.22 150 / 0.15);
+  }
+
+  /* Inner screen depth effect */
+  .crt-inset {
+    box-shadow:
+      inset 0 0 30px 10px oklch(0 0 0 / 0.2),
+      inset 0 0 5px 2px oklch(0 0 0 / 0.3);
+  }
+  .dark .crt-inset {
+    box-shadow:
+      inset 0 0 30px 10px oklch(0 0 0 / 0.4),
+      inset 0 0 5px 2px oklch(0 0 0 / 0.6);
+  }
+
+  /* Text glow for headings */
+  .text-glow {
+    text-shadow:
+      0 0 4px currentColor,
+      0 0 8px currentColor;
+  }
+  .dark .text-glow {
+    text-shadow:
+      0 0 6px currentColor,
+      0 0 12px currentColor,
+      0 0 20px currentColor;
+  }
+
+  /* Subtle phosphor highlight on hover */
+  .hover-glow {
+    transition: box-shadow 0.2s ease-out;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 15px 3px oklch(0.72 0.22 150 / 0.15);
+  }
+  .dark .hover-glow:hover {
+    box-shadow: 0 0 20px 5px oklch(0.72 0.22 150 / 0.25);
   }
 }

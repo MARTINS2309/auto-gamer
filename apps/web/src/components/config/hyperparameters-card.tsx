@@ -56,7 +56,7 @@ function PPOParams({
             {/* Optimization */}
             <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Optimization</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary/20 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary/20 p-4">
                     <div className="space-y-2">
                         <LabelWithTooltip tooltip="Step size for gradient descent. Smaller values are more stable but slower.">
                             Learning Rate
@@ -171,7 +171,7 @@ function PPOParams({
             <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Advanced</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-secondary/20">
                         <LabelWithTooltip tooltip="Normalize advantages before policy update. Generally improves stability.">
                             Normalize Advantage
                         </LabelWithTooltip>
@@ -180,7 +180,7 @@ function PPOParams({
                             onCheckedChange={(v) => onChange("normalize_advantage", v)}
                         />
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-secondary/20">
                         <LabelWithTooltip tooltip="Use Generalized State-Dependent Exploration. Better for continuous action spaces.">
                             Use SDE
                         </LabelWithTooltip>
@@ -213,7 +213,7 @@ function A2CParams({
             {/* Optimization */}
             <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Optimization</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary/20 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary/20 p-4">
                     <div className="space-y-2">
                         <LabelWithTooltip tooltip="Step size for gradient descent. A2C default is higher than PPO.">
                             Learning Rate
@@ -317,7 +317,7 @@ function A2CParams({
             <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Advanced</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-secondary/20">
                         <LabelWithTooltip tooltip="Use RMSprop optimizer instead of Adam. Recommended for A2C.">
                             Use RMSprop
                         </LabelWithTooltip>
@@ -327,7 +327,7 @@ function A2CParams({
                             disabled={readOnly}
                         />
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-secondary/20">
                         <LabelWithTooltip tooltip="Normalize advantages before policy update.">
                             Normalize Advantage
                         </LabelWithTooltip>
@@ -337,7 +337,7 @@ function A2CParams({
                             disabled={readOnly}
                         />
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-secondary/20">
                         <LabelWithTooltip tooltip="Use Generalized State-Dependent Exploration.">
                             Use SDE
                         </LabelWithTooltip>
@@ -363,7 +363,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
             {/* Optimization */}
             <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Optimization</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary/20 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-secondary/20 p-4">
                     <div className="space-y-2">
                         <LabelWithTooltip tooltip="Step size for gradient descent.">
                             Learning Rate

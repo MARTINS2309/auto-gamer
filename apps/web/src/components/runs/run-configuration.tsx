@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback } from "react"
 import { ChevronDown, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
-import type { Run } from "@/lib/schemas"
+import type { Run, RunHyperparams } from "@/lib/schemas"
+import { DEFAULT_HYPERPARAMS } from "@/lib/schemas"
 import { useUpdateRun } from "@/hooks/use-runs"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
 
@@ -45,17 +46,13 @@ function GeneralConfig({ run }: { run: Run }) {
 }
 
 export function RunConfiguration({ run }: RunConfigurationProps) {
-    const [hparams, setHparams] = useState(run.hyperparams)
+    const initialHparams: RunHyperparams = run.hyperparams ?? DEFAULT_HYPERPARAMS
+    const [hparams, setHparams] = useState<RunHyperparams>(initialHparams)
     const updateRun = useUpdateRun()
-    
-    // Sync local state when run prop updates (e.g. from backend or parent refresh)
-    useEffect(() => {
-        setHparams(run.hyperparams)
-    }, [run.hyperparams])
-    
+
     // Check if run is in a state that allows editing (PAUSED, PENDING, STOPPED)
     const isEditable = ["paused", "pending", "stopped"].includes(run.status);
-    
+
     // Check for dirty state
     const isDirty = JSON.stringify(hparams) !== JSON.stringify(run.hyperparams)
 
@@ -65,9 +62,9 @@ export function RunConfiguration({ run }: RunConfigurationProps) {
 
     const handleSave = () => {
         if (!isEditable) return;
-        updateRun.mutate({ 
-            id: run.id, 
-            updates: { hyperparams: hparams } 
+        updateRun.mutate({
+            id: run.id,
+            updates: { hyperparams: hparams }
         })
     }
 
@@ -92,7 +89,7 @@ export function RunConfiguration({ run }: RunConfigurationProps) {
                             onChange={handleHparamChange}
                             readOnly={!isEditable}
                         />
-                        
+
                         {isEditable && isDirty && (
                             <div className="absolute top-0 right-0 -mt-12 lg:mt-0 lg:right-6 flex justify-end">
                                 <Button onClick={handleSave} disabled={updateRun.isPending} size="sm">

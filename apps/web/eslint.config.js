@@ -24,18 +24,21 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
+      // Allow _-prefixed unused vars (standard destructure convention)
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       // Enforce semantic colors only - no direct Tailwind palette or arbitrary colors
       'shadcn-rules/no-color-overrides': 'error',
       // Enforce sharp corners - brutalist theme
       'shadcn-rules/no-border-radius': 'error',
     },
   },
-  // Exclude shadcn ui components from rules (they define the variants)
+  // Exclude shadcn ui components from custom rules + react-refresh (they export variants + components)
   {
     files: ['src/components/ui/**/*.{ts,tsx}'],
     rules: {
       'shadcn-rules/no-color-overrides': 'off',
       'shadcn-rules/no-border-radius': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

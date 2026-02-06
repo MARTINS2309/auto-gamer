@@ -6,14 +6,15 @@ interface TestRun {
   id: string
   rom: string
   status: RunStatus
+  algorithm: string
 }
 
 const createRuns = (): TestRun[] => [
-  { id: "run-001", rom: "Pokemon FireRed", status: "running" },
-  { id: "run-002", rom: "Pokemon Emerald", status: "completed" },
-  { id: "run-003", rom: "Super Mario Bros", status: "failed" },
-  { id: "run-004", rom: "Pokemon Crystal", status: "running" },
-  { id: "run-005", rom: "Zelda", status: "stopped" },
+  { id: "run-001", rom: "Pokemon FireRed", status: "running", algorithm: "PPO" },
+  { id: "run-002", rom: "Pokemon Emerald", status: "completed", algorithm: "DQN" },
+  { id: "run-003", rom: "Super Mario Bros", status: "failed", algorithm: "PPO" },
+  { id: "run-004", rom: "Pokemon Crystal", status: "running", algorithm: "A2C" },
+  { id: "run-005", rom: "Zelda", status: "stopped", algorithm: "PPO" },
 ]
 
 describe("filterRuns", () => {
@@ -122,7 +123,7 @@ describe("filterRuns", () => {
         extra: string
       }
       const runs: ExtendedRun[] = [
-        { id: "run-001", rom: "Pokemon", status: "running", extra: "data" },
+        { id: "run-001", rom: "Pokemon", status: "running", algorithm: "PPO", extra: "data" },
       ]
       const result = filterRuns(runs, "", "all")
       expect(result[0].extra).toBe("data")

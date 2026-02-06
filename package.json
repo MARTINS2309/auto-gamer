@@ -10,10 +10,18 @@
     "preview": "pnpm --filter web preview",
     "setup": "./scripts/setup.sh",
     "setup:python": "./scripts/setup-python.sh",
+    "setup:gpu": "./scripts/setup-gpu.sh",
     "setup:retro": "./apps/api/.venv/bin/pip install -e packages/stable-retro",
     "roms:import": "./apps/api/.venv/bin/python -m retro.import packages/roms",
-    "lint": "pnpm --filter web lint",
-    "typecheck": "pnpm --filter web typecheck"
+    "lint": "pnpm lint:web && pnpm lint:api",
+    "lint:web": "pnpm --filter web lint",
+    "lint:api": "cd apps/api && .venv/bin/ruff check .",
+    "lint:api:fix": "cd apps/api && .venv/bin/ruff check . --fix && .venv/bin/ruff format .",
+    "typecheck": "pnpm typecheck:web && pnpm typecheck:api",
+    "typecheck:web": "pnpm --filter web typecheck",
+    "typecheck:api": "cd apps/api && .venv/bin/mypy src",
+    "format": "pnpm format:web && pnpm format:api",
+    "format:api": "cd apps/api && .venv/bin/ruff format ."
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

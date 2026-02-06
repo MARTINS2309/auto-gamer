@@ -122,4 +122,5 @@ function useConfirm() {
   return context.confirm
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- useConfirm hook is tightly coupled with ConfirmProvider
 export { ConfirmDialog, ConfirmProvider, useConfirm }

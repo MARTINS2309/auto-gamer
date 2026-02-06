@@ -4,7 +4,7 @@ import type { ConfigUpdate } from "@/lib/schemas"
 
 interface AlgorithmDefaultsCardProps {
     formData: ConfigUpdate
-    onChange: (field: keyof ConfigUpdate, value: any) => void
+    onChange: (field: keyof ConfigUpdate, value: ConfigUpdate[keyof ConfigUpdate]) => void
 }
 
 export function AlgorithmDefaultsCard({ formData, onChange }: AlgorithmDefaultsCardProps) {

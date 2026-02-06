@@ -31,6 +31,9 @@ source .venv/bin/activate
 echo -e "${YELLOW}Upgrading pip...${NC}"
 pip install --upgrade pip
 
+echo -e "${YELLOW}Detecting GPU and installing PyTorch...${NC}"
+"$SCRIPT_DIR/setup-gpu.sh"
+
 echo -e "${YELLOW}Installing Python dependencies...${NC}"
 pip install -r requirements.txt
 

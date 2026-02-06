@@ -58,10 +58,10 @@ export function MetricsChart({ data, color, maxValue, label, className, ...props
                     />
                 )
             })}
-            <div className="absolute top-0 right-0 text-[10px] text-muted-foreground bg-background/80 px-1 rounded">
+            <div className="absolute top-0 right-0 text-[10px] text-muted-foreground bg-background/80 px-1">
                 Max: {computedMax.toFixed(2)}
             </div>
-            <div className="absolute bottom-0 right-0 text-[10px] text-muted-foreground bg-background/80 px-1 rounded">
+            <div className="absolute bottom-0 right-0 text-[10px] text-muted-foreground bg-background/80 px-1">
                 Min: {computedMin.toFixed(2)}
             </div>
         </div>

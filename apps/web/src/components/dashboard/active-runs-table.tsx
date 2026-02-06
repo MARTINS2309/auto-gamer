@@ -5,7 +5,7 @@ import { Play, Square } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import type { Run } from "@/lib/schemas"
 import { NewRunDialog } from "@/components/runs/new-run-dialog"
-import { useRoms, useGameMetadata } from "@/hooks"
+import { useRoms } from "@/hooks"
 
 interface ActiveRunsTableProps {
   runs: Run[]
@@ -16,23 +16,23 @@ interface ActiveRunsTableProps {
 function ActiveRunRow({ run, onStopRun }: { run: Run, onStopRun: (id: string) => void }) {
   const { data: roms = [] } = useRoms()
   const rom = roms.find(r => r.id === run.rom)
-  const { data: metadata } = useGameMetadata(
-    rom?.system ?? null,
-    rom?.id ?? null
-  )
+
+  // ROM data now includes all metadata directly
+  const displayName = rom?.display_name ?? run.rom
+  const thumbnailUrl = rom?.thumbnail_url
 
   return (
     <TableRow>
       <TableCell className="font-medium">
         <div className="flex items-center gap-3">
-          {metadata?.cover_url ? (
+          {thumbnailUrl ? (
             <img
-              src={metadata.cover_url}
-              alt={metadata.name}
-              className="w-8 h-10 object-cover rounded shadow-sm"
+              src={thumbnailUrl}
+              alt={displayName}
+              className="w-8 h-10 object-cover shadow-sm"
             />
           ) : (
-            <div className="w-8 h-10 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
+            <div className="w-8 h-10 bg-muted flex items-center justify-center text-xs text-muted-foreground">
               ?
             </div>
           )}
@@ -42,7 +42,7 @@ function ActiveRunRow({ run, onStopRun }: { run: Run, onStopRun: (id: string) =>
               params={{ runId: run.id }}
               className="hover:text-primary font-semibold"
             >
-              {metadata?.name ?? rom?.name ?? run.rom}
+              {displayName}
             </Link>
             <span className="text-xs text-muted-foreground truncate max-w-[150px]">
               {run.id}

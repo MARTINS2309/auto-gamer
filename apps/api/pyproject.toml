@@ -1,0 +1,50 @@
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "UP", # pyupgrade
+]
+ignore = [
+    "B008", # Do not perform function call `Depends` in argument defaults
+    "E501", # Line too long (handled by formatter, but some strings cannot be split)
+    "E741", # Ambiguous variable name (e.g. 'l' for Left button)
+    "B904", # Within an `except` clause, raise exceptions with `raise ... from err`
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
+explicit_package_bases = true
+namespace_packages = true
+# SQLAlchemy legacy Column() style produces Column[T] vs T mismatches
+# These modules heavily construct Pydantic models from ORM attributes
+[[tool.mypy.overrides]]
+module = [
+    "src.models.db",
+    "src.routers.config",
+    "src.routers.metadata",
+    "src.routers.play",
+    "src.routers.roms",
+    "src.routers.runs",
+    "src.routers.thumbnails",
+    "src.scripts.*",
+    "src.services.igdb",
+    "src.services.play_manager",
+    "src.services.rom_sync",
+    "src.services.run_manager",
+    "src.services.connector_builder",
+    "src.routers.connector_builder",
+]
+disable_error_code = ["arg-type", "assignment", "call-arg", "call-overload", "union-attr", "valid-type", "misc", "attr-defined"]

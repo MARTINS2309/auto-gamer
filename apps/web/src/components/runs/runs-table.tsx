@@ -8,7 +8,7 @@ import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { StatusBadge } from "@/components/shared"
 import type { Run } from "@/lib/schemas"
-import { useRoms, useGameMetadata } from "@/hooks"
+import { useRoms } from "@/hooks"
 
 interface RunsTableProps {
   runs: Run[]
@@ -37,12 +37,10 @@ function RunRow({
 }) {
   const { data: roms = [] } = useRoms()
   const rom = roms.find(r => r.id === run.rom)
-  const { data: metadata } = useGameMetadata(
-    rom?.system ?? null,
-    rom?.id ?? null
-  )
 
-  const displayName = metadata?.name ?? rom?.name ?? run.rom
+  // ROM data now includes all metadata directly
+  const displayName = rom?.display_name ?? run.rom
+  const thumbnailUrl = rom?.thumbnail_url
 
   return (
     <TableRow>
@@ -66,11 +64,11 @@ function RunRow({
       </TableCell>
       <TableCell className="font-medium">
         <div className="flex items-center gap-2">
-          {metadata?.cover_url && (
+          {thumbnailUrl && (
             <img
-              src={metadata.cover_url}
-              alt={metadata.name}
-              className="w-8 h-10 object-cover rounded shadow-sm hidden sm:block"
+              src={thumbnailUrl}
+              alt={displayName}
+              className="w-8 h-10 object-cover shadow-sm hidden sm:block"
             />
           )}
           <span className="truncate max-w-[200px]" title={`${displayName} (${rom?.system ?? "Unknown"})`}>{displayName}</span>

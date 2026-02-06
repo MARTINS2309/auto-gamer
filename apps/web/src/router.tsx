@@ -5,6 +5,7 @@ import { RomsPage } from "./pages/roms"
 import { RunsPage } from "./pages/runs"
 import { RunDetailPage } from "./pages/run-detail"
 import { ConfigPage } from "./pages/config"
+import ConnectorBuilderPage from "./pages/connector-builder"
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -44,12 +45,22 @@ const configRoute = createRoute({
   component: ConfigPage,
 })
 
+const connectorBuilderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/connector-builder",
+  component: ConnectorBuilderPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    rom: (search.rom as string) || undefined,
+  }),
+})
+
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   romsRoute,
   runsRoute,
   runDetailRoute,
   configRoute,
+  connectorBuilderRoute,
 ])
 
 export const router = createRouter({ routeTree })

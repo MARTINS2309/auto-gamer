@@ -7,10 +7,11 @@ import { RunDetailsHeader } from "@/components/runs/run-details-header"
 import { RunStatsGrid } from "@/components/runs/run-stats-grid"
 import { RunChartsSection } from "@/components/runs/run-charts-section"
 import { RunConfiguration } from "@/components/runs/run-configuration"
+import { TrainingFrameViewer } from "@/components/runs/training-frame-viewer"
 
 export function RunDetailPage() {
   const { runId } = useParams({ from: "/runs/$runId" })
-  const { run, isLoading, currentMetrics, history, error, isRunning } = useRunDetails(runId)
+  const { run, isLoading, currentMetrics, history, error, isRunning, gridFrame, focusedFrame, focusedEnv, setFocusedEnv, setFrameFreq } = useRunDetails(runId)
 
   if (isLoading) {
     return (
@@ -46,14 +47,28 @@ export function RunDetailPage() {
         <RunStatsGrid run={run} metrics={currentMetrics} />
 
         {isRunning && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Training Progress</span>
-              <span className="text-xs text-muted-foreground">
-                {Math.floor((currentMetrics.step / run.max_steps) * 100)}% ({currentMetrics.step.toLocaleString()} / {run.max_steps.toLocaleString()})
-              </span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Training Frame Viewer */}
+            <TrainingFrameViewer
+              gridFrame={gridFrame}
+              focusedFrame={focusedFrame}
+              focusedEnv={focusedEnv}
+              onFocusEnv={setFocusedEnv}
+              onFrameFreqChange={setFrameFreq}
+            />
+
+            {/* Progress */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Training Progress</span>
+                  <span className="text-xs text-muted-foreground">
+                    {Math.floor((currentMetrics.step / run.max_steps) * 100)}% ({currentMetrics.step.toLocaleString()} / {run.max_steps.toLocaleString()})
+                  </span>
+                </div>
+                <Progress value={(currentMetrics.step / run.max_steps) * 100} />
+              </div>
             </div>
-            <Progress value={(currentMetrics.step / run.max_steps) * 100} />
           </div>
         )}
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   RunStatusSchema,
-  RomSchema,
+  GameSchema,
   RunSchema,
   RunCreateSchema,
   RunMetricsSchema,
@@ -32,38 +32,66 @@ describe("RunStatusSchema", () => {
   })
 })
 
-describe("RomSchema", () => {
-  it("parses valid ROM", () => {
-    const rom = {
-      id: "rom-123",
-      name: "Pokemon FireRed",
+describe("GameSchema (RomSchema)", () => {
+  it("parses valid game with ROM and connector", () => {
+    const game = {
+      id: "game-123",
+      display_name: "Pokemon FireRed",
       system: "gba",
-      playable: true,
+      has_rom: true,
+      has_connector: true,
+      status: "trainable",
       states: ["start", "mid-game"],
+      sync_status: "synced",
     }
-    expect(RomSchema.parse(rom)).toEqual(rom)
+    const result = GameSchema.parse(game)
+    expect(result.has_rom).toBe(true)
+    expect(result.has_connector).toBe(true)
+    expect(result.status).toBe("trainable")
   })
 
-  it("applies default for optional fields", () => {
-    const rom = {
-      id: "rom-123",
-      name: "Pokemon FireRed",
+  it("parses game with ROM only (playable)", () => {
+    const game = {
+      id: "game-123",
+      display_name: "Pokemon FireRed",
       system: "gba",
+      has_rom: true,
+      has_connector: false,
+      status: "playable",
+      sync_status: "synced",
     }
-    const result = RomSchema.parse(rom)
-    expect(result.playable).toBe(false)
-    expect(result.states).toBeUndefined()
+    const result = GameSchema.parse(game)
+    expect(result.has_rom).toBe(true)
+    expect(result.has_connector).toBe(false)
+    expect(result.status).toBe("playable")
+    expect(result.states).toEqual([]) // default
+  })
+
+  it("parses connector-only game", () => {
+    const game = {
+      id: "game-123",
+      display_name: "Pokemon FireRed",
+      system: "gba",
+      has_rom: false,
+      has_connector: true,
+      status: "connector_only",
+      sync_status: "pending",
+    }
+    const result = GameSchema.parse(game)
+    expect(result.has_rom).toBe(false)
+    expect(result.has_connector).toBe(true)
+    expect(result.status).toBe("connector_only")
   })
 
   it("rejects missing required fields", () => {
-    expect(() => RomSchema.parse({ id: "123" })).toThrow()
-    expect(() => RomSchema.parse({ id: "123", name: "Test" })).toThrow()
+    expect(() => GameSchema.parse({ id: "123" })).toThrow()
+    expect(() => GameSchema.parse({ id: "123", display_name: "Test" })).toThrow()
   })
 })
 
 describe("RunSchema", () => {
   const validRun = {
-    id: "run-123",
+    id: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
     rom: "pokemon-firered",
     state: "start",
     algorithm: "PPO",
@@ -114,7 +142,7 @@ describe("RunSchema", () => {
   })
 
   it("rejects missing required fields", () => {
-    const { id: _, ...noId } = validRun
+    const { id: _id, ...noId } = validRun
     expect(() => RunSchema.parse(noId)).toThrow()
   })
 })
@@ -160,6 +188,7 @@ describe("RunMetricsSchema", () => {
   it("parses valid metrics", () => {
     const metrics = {
       step: 1000,
+      timestamp: 1704067200.0, // Required timestamp
       reward: 50.5,
       avg_reward: 45.0,
       best_reward: 100.0,
@@ -167,12 +196,16 @@ describe("RunMetricsSchema", () => {
       loss: 0.05,
       epsilon: 0.1,
     }
-    expect(RunMetricsSchema.parse(metrics)).toEqual(metrics)
+    const result = RunMetricsSchema.parse(metrics)
+    expect(result.step).toBe(1000)
+    expect(result.timestamp).toBe(1704067200.0)
+    expect(result.reward).toBe(50.5)
   })
 
   it("accepts missing optional fields", () => {
     const metrics = {
       step: 1000,
+      timestamp: 1704067200.0, // Required
       reward: 50.5,
       avg_reward: 45.0,
       best_reward: 100.0,
@@ -190,6 +223,7 @@ describe("ConfigSchema", () => {
       default_algorithm: "PPO",
       default_device: "cuda",
       storage_path: "/data/runs",
+      max_concurrent_runs: 4, // Required field
     }
     expect(ConfigSchema.parse(config)).toEqual(config)
   })
@@ -215,7 +249,7 @@ describe("RUN_STATUS_VARIANTS", () => {
 
 // Helper to create Run objects for utility function tests
 const createTestRun = (status: string): Run => ({
-  id: "run-1",
+  id: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
   rom: "test-rom",
   state: "start",
   algorithm: "PPO",

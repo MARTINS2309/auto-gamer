@@ -4,8 +4,10 @@ import { Separator } from "@/components/ui/separator"
 import { Page, PageHeader, PageTitle, PageDescription, PageActions, PageContent } from "@/components/ui/page"
 import { useEmulators, useConfigForm } from "@/hooks"
 import { SystemSettingsCard } from "@/components/config/system-settings-card"
+import { RomManagementCard } from "@/components/config/rom-management-card"
 import { AlgorithmDefaultsCard } from "@/components/config/algorithm-defaults-card"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
+import { InputSettingsCard } from "@/components/config/input-settings-card"
 export function ConfigPage() {
   const { data: emulators = [] } = useEmulators()
   const { formData, isSaving, isDirty, isLoading, handleChange, handleSave, handleReset } = useConfigForm()
@@ -59,6 +61,14 @@ export function ConfigPage() {
 
         <Separator />
 
+        {/* ROM Management */}
+        <RomManagementCard
+          formData={formData}
+          onChange={handleChange}
+        />
+
+        <Separator />
+
         {/* Algorithm Defaults */}
         <AlgorithmDefaultsCard
           formData={formData}
@@ -72,6 +82,14 @@ export function ConfigPage() {
           algorithm={algorithm}
           hparams={hparams}
           onChange={updateHParam}
+        />
+
+        <Separator />
+
+        {/* Input Settings */}
+        <InputSettingsCard
+          inputConfig={formData.input}
+          onChange={(input) => handleChange("input", input as typeof formData.input)}
         />
 
       </PageContent>

@@ -1,2 +1,6 @@
 export { ActiveRunsTable } from "./active-runs-table"
 export { ActivityFeed } from "./activity-feed"
+export { DashboardFrameViewer } from "./dashboard-frame-viewer"
+export { NoSignalHero } from "./no-signal-hero"
+export { MetricsTicker } from "./metrics-ticker"
+export { FeaturedRomCarousel } from "./featured-rom-carousel"

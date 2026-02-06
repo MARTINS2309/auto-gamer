@@ -46,6 +46,10 @@ echo -e "${YELLOW}Step 3: Setting up Python environment...${NC}"
 ./scripts/setup-python.sh
 
 echo ""
+echo -e "${YELLOW}Step 4: Downloading external resources...${NC}"
+./scripts/download-resources.sh
+
+echo ""
 echo -e "${GREEN}=== Setup Complete ===${NC}"
 echo ""
 echo "Available commands:"

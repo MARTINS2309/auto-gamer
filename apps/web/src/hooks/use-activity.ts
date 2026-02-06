@@ -65,39 +65,42 @@ export function useActivityFeed({
 
       if (prevStatus !== run.status) {
         // Status changed
-        if (run.status === "running" && prevStatus !== "running") {
-          addEvent({
-            type: "run_started",
-            runId: run.id,
-            runName: run.rom,
-            timestamp: new Date().toISOString(),
-            message: `Started training on ${run.state}`,
-          })
-        } else if (run.status === "stopped") {
-          addEvent({
-            type: "run_stopped",
-            runId: run.id,
-            runName: run.rom,
-            timestamp: new Date().toISOString(),
-            message: `Training stopped`,
-          })
-        } else if (run.status === "completed") {
-          addEvent({
-            type: "run_completed",
-            runId: run.id,
-            runName: run.rom,
-            timestamp: new Date().toISOString(),
-            message: `Training completed`,
-          })
-        } else if (run.status === "failed") {
-          addEvent({
-            type: "run_failed",
-            runId: run.id,
-            runName: run.rom,
-            timestamp: new Date().toISOString(),
-            message: `Training failed: ${run.error || "Unknown error"}`,
-          })
-        }
+        // Wrap in setTimeout to avoid setting state during render
+        setTimeout(() => {
+          if (run.status === "running" && prevStatus !== "running") {
+            addEvent({
+              type: "run_started",
+              runId: run.id,
+              runName: run.rom,
+              timestamp: new Date().toISOString(),
+              message: `Started training on ${run.state}`,
+            })
+          } else if (run.status === "stopped") {
+            addEvent({
+              type: "run_stopped",
+              runId: run.id,
+              runName: run.rom,
+              timestamp: new Date().toISOString(),
+              message: `Training stopped`,
+            })
+          } else if (run.status === "completed") {
+            addEvent({
+              type: "run_completed",
+              runId: run.id,
+              runName: run.rom,
+              timestamp: new Date().toISOString(),
+              message: `Training completed`,
+            })
+          } else if (run.status === "failed") {
+            addEvent({
+              type: "run_failed",
+              runId: run.id,
+              runName: run.rom,
+              timestamp: new Date().toISOString(),
+              message: `Training failed: ${run.error || "Unknown error"}`,
+            })
+          }
+        }, 0)
 
         prevStatusRef.current.set(run.id, run.status)
       }
@@ -136,6 +139,7 @@ export function useActivityFeed({
             // Check reward milestones
             for (const threshold of REWARD_MILESTONES) {
               if (
+                metrics.best_reward != null &&
                 metrics.best_reward >= threshold &&
                 tracker.lastRewardMilestone < threshold
               ) {
@@ -177,8 +181,10 @@ export function useActivityFeed({
     }
 
     return () => {
-      wsMapRef.current.forEach((ws) => ws.close())
-      wsMapRef.current.clear()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const wsMap = wsMapRef.current
+      wsMap.forEach((ws) => ws.close())
+      wsMap.clear()
     }
   }, [runs, addEvent])
 

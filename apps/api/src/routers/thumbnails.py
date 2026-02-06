@@ -9,21 +9,20 @@ Multi-layer lookup strategy:
 5. (Future) ScreenScraper API via ROM SHA1
 """
 
-import re
-import json
+import asyncio
 import hashlib
-from pathlib import Path
-from typing import Optional, List, Tuple
-from urllib.parse import quote
-from difflib import SequenceMatcher
+import json
+import re
 from datetime import datetime
+from difflib import SequenceMatcher
+from pathlib import Path
+from urllib.parse import quote
 
 import httpx
-from fastapi import APIRouter, HTTPException, Response, Depends
+from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
 
-from ..models.db import SessionLocal, ThumbnailMapping, ThumbnailFailure
+from ..models.db import RomModel, SessionLocal, ThumbnailFailure, ThumbnailMapping
 
 router = APIRouter(prefix="/thumbnails")
 
@@ -134,7 +133,7 @@ REGION_VARIANTS = [
 
 # In-memory caches (loaded from DB on startup)
 _cache_key_map: dict[str, str] = {}  # For debugging: cache_key -> "system:game:type"
-_system_indexes: dict[str, List[str]] = {}  # system -> list of available thumbnails
+_system_indexes: dict[str, list[str]] = {}  # system -> list of available thumbnails
 _mappings_cache: dict[str, str] = {}  # "system:game_id" -> libretro_name
 _failures_cache: set[str] = set()  # "system:game_id" for known failures
 
@@ -142,6 +141,7 @@ _failures_cache: set[str] = set()  # "system:game_id" for known failures
 # =============================================================================
 # Database Helpers
 # =============================================================================
+
 
 def get_db():
     """Get a database session."""
@@ -174,15 +174,18 @@ def load_mappings_to_memory():
         db.close()
 
 
-def save_mapping_to_db(system: str, game_id: str, libretro_name: str, match_type: str, match_score: Optional[float] = None):
+def save_mapping_to_db(
+    system: str, game_id: str, libretro_name: str, match_type: str, match_score: float | None = None
+):
     """Save a successful mapping to the database."""
     db = SessionLocal()
     try:
         # Check if exists
-        existing = db.query(ThumbnailMapping).filter(
-            ThumbnailMapping.system == system,
-            ThumbnailMapping.game_id == game_id
-        ).first()
+        existing = (
+            db.query(ThumbnailMapping)
+            .filter(ThumbnailMapping.system == system, ThumbnailMapping.game_id == game_id)
+            .first()
+        )
 
         if existing:
             # Update existing
@@ -196,7 +199,7 @@ def save_mapping_to_db(system: str, game_id: str, libretro_name: str, match_type
                 game_id=game_id,
                 libretro_name=libretro_name,
                 match_type=match_type,
-                match_score=match_score
+                match_score=match_score,
             )
             db.add(mapping)
 
@@ -215,19 +218,17 @@ def save_failure_to_db(system: str, game_id: str):
     db = SessionLocal()
     try:
         # Check if exists
-        existing = db.query(ThumbnailFailure).filter(
-            ThumbnailFailure.system == system,
-            ThumbnailFailure.game_id == game_id
-        ).first()
+        existing = (
+            db.query(ThumbnailFailure)
+            .filter(ThumbnailFailure.system == system, ThumbnailFailure.game_id == game_id)
+            .first()
+        )
 
         if existing:
             existing.attempts += 1
             existing.last_attempt = datetime.utcnow()
         else:
-            failure = ThumbnailFailure(
-                system=system,
-                game_id=game_id
-            )
+            failure = ThumbnailFailure(system=system, game_id=game_id)
             db.add(failure)
 
         db.commit()
@@ -239,7 +240,7 @@ def save_failure_to_db(system: str, game_id: str):
         db.close()
 
 
-def get_mapping_from_cache(system: str, game_id: str) -> Optional[str]:
+def get_mapping_from_cache(system: str, game_id: str) -> str | None:
     """Get a known name mapping from memory cache."""
     return _mappings_cache.get(f"{system}:{game_id}")
 
@@ -253,44 +254,53 @@ def is_known_failure(system: str, game_id: str) -> bool:
 # System Index Management (still uses file cache for large indexes)
 # =============================================================================
 
+
 def get_index_path(system: str) -> Path:
     """Get path to cached index file for a system."""
     safe_name = system.replace(" ", "_").replace("-", "_")
     return INDEX_DIR / f"{safe_name}.json"
 
 
-async def fetch_system_index(libretro_system: str) -> Optional[List[str]]:
-    """Fetch thumbnail index for a system from GitHub API."""
+async def fetch_system_index(libretro_system: str) -> list[str] | None:
+    """Fetch thumbnail index for a system from GitHub API using Git Trees (no 1000 item limit)."""
     github_repo = GITHUB_REPO_MAP.get(libretro_system)
     if not github_repo:
         print(f"[THUMB] No GitHub repo mapping for: {libretro_system}")
         return None
 
-    url = f"{GITHUB_API}/{github_repo}/contents/Named_Boxarts"
-    print(f"[THUMB] Fetching index from: {url}")
+    # Use Git Trees API to get all files (no pagination limit)
+    # First get the default branch's tree SHA
+    url = f"{GITHUB_API}/{github_repo}/git/trees/master?recursive=1"
+    print(f"[THUMB] Fetching full tree from: {url}")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.get(url)
             if response.status_code == 200:
                 data = response.json()
-                if isinstance(data, list):
-                    names = [
-                        item["name"][:-4]  # Remove .png
-                        for item in data
-                        if item.get("name", "").endswith(".png")
-                    ]
-                    print(f"[THUMB] Fetched {len(names)} thumbnails for {libretro_system}")
-                    return names
+                tree = data.get("tree", [])
+
+                # Filter for Named_Boxarts/*.png files
+                names = []
+                prefix = "Named_Boxarts/"
+                for item in tree:
+                    path = item.get("path", "")
+                    if path.startswith(prefix) and path.endswith(".png"):
+                        # Extract filename without path and extension
+                        filename = path[len(prefix):-4]
+                        names.append(filename)
+
+                print(f"[THUMB] Fetched {len(names)} thumbnails for {libretro_system}")
+                return names
             else:
-                print(f"[THUMB] Failed to fetch index: {response.status_code}")
+                print(f"[THUMB] Failed to fetch tree: {response.status_code} - {response.text[:200]}")
         except Exception as e:
-            print(f"[THUMB] Error fetching index: {e}")
+            print(f"[THUMB] Error fetching tree: {e}")
 
     return None
 
 
-async def get_system_index(system: str) -> List[str]:
+async def get_system_index(system: str) -> list[str]:
     """Get the thumbnail index for a system (cached)."""
     libretro_system = get_libretro_system(system)
     if not libretro_system:
@@ -308,7 +318,7 @@ async def get_system_index(system: str) -> List[str]:
                 names = json.load(f)
             _system_indexes[libretro_system] = names
             print(f"[THUMB] Loaded {len(names)} names from cached index for {system}")
-            return names
+            return list(names)
         except Exception as e:
             print(f"[THUMB] Error loading cached index: {e}")
 
@@ -316,7 +326,7 @@ async def get_system_index(system: str) -> List[str]:
     names = await fetch_system_index(libretro_system)
     if names:
         try:
-            with open(index_path, 'w') as f:
+            with open(index_path, "w") as f:
                 json.dump(names, f)
         except Exception as e:
             print(f"[THUMB] Error caching index: {e}")
@@ -331,7 +341,8 @@ async def get_system_index(system: str) -> List[str]:
 # Name Matching
 # =============================================================================
 
-def get_libretro_system(system: str) -> Optional[str]:
+
+def get_libretro_system(system: str) -> str | None:
     """Map our system ID to LibRetro folder name."""
     if system in SYSTEM_MAP:
         return SYSTEM_MAP[system]
@@ -344,25 +355,25 @@ def get_libretro_system(system: str) -> Optional[str]:
 def clean_game_name(name: str) -> str:
     """Clean game name for LibRetro URL format."""
     # Remove version suffix like "-Snes-v0"
-    cleaned = re.sub(r'-[A-Za-z0-9]+-v\d+$', '', name)
+    cleaned = re.sub(r"-[A-Za-z0-9]+-v\d+$", "", name)
 
     # CamelCase to spaces: "SuperMarioWorld" -> "Super Mario World"
-    cleaned = re.sub(r'([a-z])([A-Z])', r'\1 \2', cleaned)
-    cleaned = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', cleaned)
+    cleaned = re.sub(r"([a-z])([A-Z])", r"\1 \2", cleaned)
+    cleaned = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", cleaned)
 
     # Numbers: "World2" -> "World 2"
-    cleaned = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', cleaned)
+    cleaned = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", cleaned)
 
     # Common abbreviations
-    cleaned = re.sub(r'\bBros\b', 'Bros.', cleaned)
-    cleaned = re.sub(r'\bDr\b', 'Dr.', cleaned)
-    cleaned = re.sub(r'\bMr\b', 'Mr.', cleaned)
-    cleaned = re.sub(r'\bMs\b', 'Ms.', cleaned)
-    cleaned = re.sub(r'\bVs\b', 'Vs.', cleaned)
-    cleaned = re.sub(r'\bSt\b', 'St.', cleaned)
+    cleaned = re.sub(r"\bBros\b", "Bros.", cleaned)
+    cleaned = re.sub(r"\bDr\b", "Dr.", cleaned)
+    cleaned = re.sub(r"\bMr\b", "Mr.", cleaned)
+    cleaned = re.sub(r"\bMs\b", "Ms.", cleaned)
+    cleaned = re.sub(r"\bVs\b", "Vs.", cleaned)
+    cleaned = re.sub(r"\bSt\b", "St.", cleaned)
 
     # Replace disallowed characters
-    cleaned = re.sub(r'[&*/:"`<>?\\|]', '_', cleaned)
+    cleaned = re.sub(r'[&*/:"`<>?\\|]', "_", cleaned)
 
     return cleaned
 
@@ -370,16 +381,18 @@ def clean_game_name(name: str) -> str:
 def normalize_for_comparison(name: str) -> str:
     """Normalize a name for fuzzy comparison."""
     # Remove region suffix like (USA), (Japan), etc.
-    normalized = re.sub(r'\s*\([^)]+\)\s*$', '', name)
+    normalized = re.sub(r"\s*\([^)]+\)\s*$", "", name)
     # Lowercase
     normalized = normalized.lower()
     # Remove punctuation and extra spaces
-    normalized = re.sub(r'[^\w\s]', '', normalized)
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    normalized = re.sub(r"[^\w\s]", "", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized
 
 
-def fuzzy_match(target: str, candidates: List[str], threshold: float = 0.7) -> List[Tuple[str, float]]:
+def fuzzy_match(
+    target: str, candidates: list[str], threshold: float = 0.7
+) -> list[tuple[str, float]]:
     """Find fuzzy matches for a target name in a list of candidates."""
     target_norm = normalize_for_comparison(target)
     matches = []
@@ -395,7 +408,7 @@ def fuzzy_match(target: str, candidates: List[str], threshold: float = 0.7) -> L
     return matches
 
 
-async def find_best_match(game: str, system: str) -> Tuple[Optional[str], str, Optional[float]]:
+async def find_best_match(game: str, system: str) -> tuple[str | None, str, float | None]:
     """
     Find the best matching LibRetro thumbnail name for a game.
     Returns: (libretro_name, match_type, match_score)
@@ -414,6 +427,27 @@ async def find_best_match(game: str, system: str) -> Tuple[Optional[str], str, O
         if full_name in index:
             print(f"[THUMB] Exact match: {full_name}")
             return full_name, "exact", 1.0
+
+    # Try prefix match (for games with subtitles like "Hit the Ice - VHL - The Official...")
+    # Only match if followed by subtitle delimiter (- or :) to avoid false positives
+    # e.g., "Hit the Ice" should match "Hit the Ice - VHL..." but "Boxing" should NOT match "Boxing Legends..."
+    normalize_for_comparison(cleaned_name)
+    prefix_matches = []
+    for candidate in index:
+        # Check original candidate for subtitle pattern before normalizing
+        # Valid: "Game Name - Subtitle", "Game Name: Subtitle", "Game Name (Region)"
+        candidate_after_name = candidate[len(cleaned_name):] if candidate.lower().startswith(cleaned_name.lower()) else ""
+        if candidate_after_name:
+            # Must start with delimiter: " - ", " (", ": "
+            if candidate_after_name.startswith((" - ", " (", ": ", " -", " (")):
+                prefix_matches.append(candidate)
+
+    if prefix_matches:
+        # Prefer USA region
+        usa = [m for m in prefix_matches if "(USA)" in m]
+        best = usa[0] if usa else prefix_matches[0]
+        print(f"[THUMB] Prefix match: {cleaned_name} -> {best}")
+        return best, "prefix", 0.95
 
     # Fuzzy match (threshold 0.75 to avoid false positives like "YarsRevenge" -> "Custer's Revenge")
     matches = fuzzy_match(cleaned_name, index, threshold=0.75)
@@ -436,6 +470,7 @@ async def find_best_match(game: str, system: str) -> Tuple[Optional[str], str, O
 # Image Fetching
 # =============================================================================
 
+
 def get_cache_key(system: str, game: str, thumb_type: str) -> str:
     """Generate a unique cache key for a thumbnail."""
     key = f"{system}:{game}:{thumb_type}"
@@ -447,7 +482,9 @@ def get_cache_path(cache_key: str) -> Path:
     return CACHE_DIR / f"{cache_key}.png"
 
 
-async def fetch_image(libretro_system: str, libretro_name: str, thumb_type: str = "boxart") -> Optional[bytes]:
+async def fetch_image(
+    libretro_system: str, libretro_name: str, thumb_type: str = "boxart"
+) -> bytes | None:
     """Fetch an image from LibRetro CDN."""
     folder = {
         "boxart": "Named_Boxarts",
@@ -473,37 +510,59 @@ async def fetch_image(libretro_system: str, libretro_name: str, thumb_type: str 
     return None
 
 
-async def fetch_thumbnail(system: str, game: str, thumb_type: str = "boxart") -> Optional[bytes]:
+async def fetch_thumbnail(system: str, game: str, thumb_type: str = "boxart") -> bytes | None:
     """
     Fetch a thumbnail using multi-layer lookup:
     1. Check name mapping cache (from DB)
-    2. Find best match (exact or fuzzy)
+    2. Find best match (exact or fuzzy) from LibRetro
     3. Fetch from LibRetro
+    4. Fallback to IGDB cover if available
     """
     libretro_system = get_libretro_system(system)
-    if not libretro_system:
-        print(f"[THUMB] No LibRetro system mapping for: {system}")
-        return None
 
-    # Layer 1: Check name mapping cache (from DB)
-    known_name = get_mapping_from_cache(system, game)
-    if known_name:
-        print(f"[THUMB] Using cached mapping: {game} -> {known_name}")
-        image = await fetch_image(libretro_system, known_name, thumb_type)
-        if image:
-            return image
+    # Try LibRetro first (free source)
+    if libretro_system:
+        # Layer 1: Check name mapping cache (from DB)
+        known_name = get_mapping_from_cache(system, game)
+        if known_name:
+            print(f"[THUMB] Using cached mapping: {game} -> {known_name}")
+            image = await fetch_image(libretro_system, known_name, thumb_type)
+            if image:
+                return image
 
-    # Layer 2: Find best match
-    best_match, match_type, match_score = await find_best_match(game, system)
-    if best_match:
-        image = await fetch_image(libretro_system, best_match, thumb_type)
-        if image:
-            # Save the mapping to DB for future use
-            save_mapping_to_db(system, game, best_match, match_type, match_score)
-            return image
+        # Layer 2: Find best match
+        best_match, match_type, match_score = await find_best_match(game, system)
+        if best_match:
+            image = await fetch_image(libretro_system, best_match, thumb_type)
+            if image:
+                # Save the mapping to DB for future use
+                await asyncio.to_thread(save_mapping_to_db, system, game, best_match, match_type, match_score)
+                return image
+
+    # Layer 3: Fallback to IGDB cover (if boxart requested)
+    if thumb_type == "boxart":
+        def _get_cover_url():
+            db = SessionLocal()
+            try:
+                rom = db.query(RomModel).filter(RomModel.id == game).first()
+                return rom.cover_url if rom else None
+            finally:
+                db.close()
+
+        cover_url = await asyncio.to_thread(_get_cover_url)
+        if cover_url:
+            print(f"[THUMB] Trying IGDB cover for: {game}")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                try:
+                    response = await client.get(cover_url)
+                    if response.status_code == 200:
+                        print(f"[THUMB] IGDB cover fetched: {game}")
+                        return response.content
+                except Exception as e:
+                    print(f"[THUMB] IGDB cover fetch failed: {e}")
 
     # Record failure
-    save_failure_to_db(system, game)
+    await asyncio.to_thread(save_failure_to_db, system, game)
     print(f"[THUMB] FAILED: No image found for {game}")
     return None
 
@@ -512,8 +571,9 @@ async def fetch_thumbnail(system: str, game: str, thumb_type: str = "boxart") ->
 # Routes (static routes MUST come before dynamic routes)
 # =============================================================================
 
+
 @router.delete("/cache")
-async def clear_cache():
+def clear_cache():
     """Clear all cached thumbnails and mappings."""
     global _mappings_cache, _failures_cache
 
@@ -523,7 +583,7 @@ async def clear_cache():
         try:
             file.unlink()
             img_count += 1
-        except IOError:
+        except OSError:
             pass
 
     # Clear DB mappings
@@ -553,7 +613,7 @@ async def clear_cache():
 
 
 @router.delete("/cache/failures")
-async def clear_failures():
+def clear_failures():
     """Clear only failure records (retry failed lookups)."""
     global _failures_cache
 
@@ -573,7 +633,7 @@ async def clear_failures():
 
 
 @router.delete("/cache/index")
-async def clear_index():
+def clear_index():
     """Clear cached system indexes (forces re-fetch from GitHub)."""
     global _system_indexes
     count = 0
@@ -581,7 +641,7 @@ async def clear_index():
         try:
             file.unlink()
             count += 1
-        except IOError:
+        except OSError:
             pass
 
     _system_indexes.clear()
@@ -589,7 +649,7 @@ async def clear_index():
 
 
 @router.get("/cache/stats")
-async def cache_stats():
+def cache_stats():
     """Get thumbnail cache statistics."""
     files = list(CACHE_DIR.glob("*.png"))
     total_size = sum(f.stat().st_size for f in files)
@@ -603,10 +663,12 @@ async def cache_stats():
 
         # Get match type breakdown
         from sqlalchemy import func
-        match_types = db.query(
-            ThumbnailMapping.match_type,
-            func.count(ThumbnailMapping.id)
-        ).group_by(ThumbnailMapping.match_type).all()
+
+        match_types = (
+            db.query(ThumbnailMapping.match_type, func.count(ThumbnailMapping.id))
+            .group_by(ThumbnailMapping.match_type)
+            .all()
+        )
         match_breakdown = {mt: count for mt, count in match_types}
     except Exception as e:
         print(f"[THUMB] Error getting stats: {e}")
@@ -639,14 +701,18 @@ async def cache_stats():
 
 
 @router.get("/cache/mappings")
-async def cache_mappings(limit: int = 100, offset: int = 0):
+def cache_mappings(limit: int = 100, offset: int = 0):
     """Get name mappings from DB (paginated)."""
     db = SessionLocal()
     try:
         total = db.query(ThumbnailMapping).count()
-        mappings = db.query(ThumbnailMapping).order_by(
-            ThumbnailMapping.created_at.desc()
-        ).offset(offset).limit(limit).all()
+        mappings = (
+            db.query(ThumbnailMapping)
+            .order_by(ThumbnailMapping.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
         return {
             "total": total,
@@ -669,14 +735,18 @@ async def cache_mappings(limit: int = 100, offset: int = 0):
 
 
 @router.get("/cache/failures")
-async def get_failures(limit: int = 100, offset: int = 0):
+def get_failures(limit: int = 100, offset: int = 0):
     """Get failed lookups from DB (paginated)."""
     db = SessionLocal()
     try:
         total = db.query(ThumbnailFailure).count()
-        failures = db.query(ThumbnailFailure).order_by(
-            ThumbnailFailure.last_attempt.desc()
-        ).offset(offset).limit(limit).all()
+        failures = (
+            db.query(ThumbnailFailure)
+            .order_by(ThumbnailFailure.last_attempt.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
         return {
             "total": total,
@@ -722,13 +792,10 @@ async def refresh_system_index(system: str):
 
 # Dynamic route MUST come last
 @router.get("/{system}/{game}")
-async def get_thumbnail(
-    system: str,
-    game: str,
-    type: str = "boxart"
-) -> Response:
+async def get_thumbnail(system: str, game: str, type: str = "boxart") -> Response:
     """
     Get a game thumbnail. Uses multi-layer lookup:
+    0. Check RomModel.thumbnail_path (new unified table)
     1. Check local image cache
     2. Check name mapping from DB
     3. Exact match with region variants
@@ -737,17 +804,40 @@ async def get_thumbnail(
     if type not in ("boxart", "snap", "title"):
         type = "boxart"
 
+    # Layer 0: Check RomModel for pre-synced thumbnail
+    if type == "boxart":
+        def _check_rom_thumbnail():
+            db = SessionLocal()
+            try:
+                rom = db.query(RomModel).filter(RomModel.id == game).first()
+                if rom and rom.thumbnail_path:
+                    return rom.thumbnail_path
+                return None
+            finally:
+                db.close()
+
+        thumb_path = await asyncio.to_thread(_check_rom_thumbnail)
+        if thumb_path:
+            thumb_file = DATA_DIR / thumb_path
+            if thumb_file.exists():
+                print(f"[THUMB] ROM DB HIT: {game} -> {thumb_path}")
+                return FileResponse(
+                    thumb_file,
+                    media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=31536000"},
+                )
+
     cache_key = get_cache_key(system, game, type)
     cache_path = get_cache_path(cache_key)
 
-    # Layer 0: Check image cache first
+    # Layer 1: Check image cache
     if cache_path.exists():
         _cache_key_map[cache_key] = f"{system}:{game}:{type}"
         print(f"[THUMB] CACHE HIT: {game} -> {cache_key}")
         return FileResponse(
             cache_path,
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=31536000"}
+            headers={"Cache-Control": "public, max-age=31536000"},
         )
 
     # Check if known failure (skip expensive lookup)
@@ -761,18 +851,42 @@ async def get_thumbnail(
         raise HTTPException(status_code=404, detail="Thumbnail not found")
 
     # Save to cache
-    try:
-        cache_path.write_bytes(image_data)
-        _cache_key_map[cache_key] = f"{system}:{game}:{type}"
-        print(f"[THUMB] CACHED: {game} -> {cache_key}")
-    except IOError:
-        pass
+    def _save_to_cache():
+        try:
+            cache_path.write_bytes(image_data)
+            _cache_key_map[cache_key] = f"{system}:{game}:{type}"
+            print(f"[THUMB] CACHED: {game} -> {cache_key}")
+
+            # Update RomModel if exists and this is boxart
+            if type == "boxart":
+                _update_rom_thumbnail_path(game, f"thumbnail_cache/{cache_key}.png")
+        except OSError:
+            pass
+
+    await asyncio.to_thread(_save_to_cache)
 
     return Response(
         content=image_data,
         media_type="image/png",
-        headers={"Cache-Control": "public, max-age=31536000"}
+        headers={"Cache-Control": "public, max-age=31536000"},
     )
+
+
+def _update_rom_thumbnail_path(rom_id: str, path: str):
+    """Update RomModel with cached thumbnail path."""
+    db = SessionLocal()
+    try:
+        rom = db.query(RomModel).filter(RomModel.id == rom_id).first()
+        if rom:
+            rom.thumbnail_path = path
+            rom.thumbnail_status = "synced"
+            db.commit()
+            print(f"[THUMB] Updated ROM thumbnail_path: {rom_id} -> {path}")
+    except Exception as e:
+        print(f"[THUMB] Error updating ROM: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 # Load mappings from DB on module import

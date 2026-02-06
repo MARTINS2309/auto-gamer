@@ -11,10 +11,10 @@ interface RatingDisplayProps {
 }
 
 function getRatingColor(rating: number): string {
-  if (rating >= 80) return "text-green-500"
-  if (rating >= 60) return "text-yellow-500"
+  if (rating >= 80) return "text-chart-2"
+  if (rating >= 60) return "text-chart-1"
   if (rating >= 40) return "text-muted-foreground"
-  return "text-red-500"
+  return "text-destructive"
 }
 
 function formatRatingPercent(rating: number): string {
@@ -72,7 +72,7 @@ export function RatingDisplay({
             className={cn(
               "size-4",
               star <= filledStars
-                ? "text-yellow-500 fill-yellow-500"
+                ? "text-chart-1 fill-chart-1"
                 : "text-muted-foreground/30"
             )}
           />

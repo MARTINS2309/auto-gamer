@@ -12,8 +12,12 @@ gymnasium>=0.29.1
 shimmy>=1.3.0
 websockets
 httpx
+sse-starlette
 psutil
 pandas
 numpy
 msgpack
 opencv-python
+
+mypy
+ruff

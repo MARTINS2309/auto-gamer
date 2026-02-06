@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any, Union, Literal
 from datetime import datetime
 from enum import Enum
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
 
 
 class RunStatus(str, Enum):
@@ -48,29 +49,37 @@ class RewardShaping(str, Enum):
 
 class PPOHyperparams(BaseModel):
     """PPO hyperparameters from SB3 documentation."""
+
     learning_rate: float = Field(default=0.0003, gt=0, description="Learning rate")
     n_steps: int = Field(default=2048, ge=1, description="Steps per environment per update")
     batch_size: int = Field(default=64, ge=1, description="Minibatch size")
     n_epochs: int = Field(default=10, ge=1, description="Number of epochs per update")
     gamma: float = Field(default=0.99, ge=0, le=1, description="Discount factor")
-    gae_lambda: float = Field(default=0.95, ge=0, le=1, description="GAE lambda for bias-variance tradeoff")
+    gae_lambda: float = Field(
+        default=0.95, ge=0, le=1, description="GAE lambda for bias-variance tradeoff"
+    )
     clip_range: float = Field(default=0.2, ge=0, le=1, description="Clipping parameter")
-    clip_range_vf: Optional[float] = Field(default=None, ge=0, le=1, description="Value function clipping")
+    clip_range_vf: float | None = Field(
+        default=None, ge=0, le=1, description="Value function clipping"
+    )
     normalize_advantage: bool = Field(default=True, description="Normalize advantages")
     ent_coef: float = Field(default=0.0, ge=0, description="Entropy coefficient")
     vf_coef: float = Field(default=0.5, ge=0, description="Value function coefficient")
     max_grad_norm: float = Field(default=0.5, ge=0, description="Max gradient clipping")
     use_sde: bool = Field(default=False, description="Use State Dependent Exploration")
     sde_sample_freq: int = Field(default=-1, ge=-1, description="SDE noise sampling frequency")
-    target_kl: Optional[float] = Field(default=None, gt=0, description="KL divergence limit")
+    target_kl: float | None = Field(default=None, gt=0, description="KL divergence limit")
 
 
 class A2CHyperparams(BaseModel):
     """A2C hyperparameters from SB3 documentation."""
+
     learning_rate: float = Field(default=0.0007, gt=0, description="Learning rate")
     n_steps: int = Field(default=5, ge=1, description="Steps per environment per update")
     gamma: float = Field(default=0.99, ge=0, le=1, description="Discount factor")
-    gae_lambda: float = Field(default=1.0, ge=0, le=1, description="GAE lambda (1.0 = classic advantage)")
+    gae_lambda: float = Field(
+        default=1.0, ge=0, le=1, description="GAE lambda (1.0 = classic advantage)"
+    )
     ent_coef: float = Field(default=0.0, ge=0, description="Entropy coefficient")
     vf_coef: float = Field(default=0.5, ge=0, description="Value function coefficient")
     max_grad_norm: float = Field(default=0.5, ge=0, description="Max gradient clipping")
@@ -83,6 +92,7 @@ class A2CHyperparams(BaseModel):
 
 class DQNHyperparams(BaseModel):
     """DQN hyperparameters from SB3 documentation."""
+
     learning_rate: float = Field(default=0.0001, gt=0, description="Learning rate")
     buffer_size: int = Field(default=1_000_000, ge=1, description="Replay buffer size")
     learning_starts: int = Field(default=100, ge=0, description="Steps before learning")
@@ -91,20 +101,29 @@ class DQNHyperparams(BaseModel):
     gamma: float = Field(default=0.99, ge=0, le=1, description="Discount factor")
     train_freq: int = Field(default=4, ge=1, description="Update frequency in steps")
     gradient_steps: int = Field(default=1, ge=-1, description="Gradient steps (-1 for auto)")
-    target_update_interval: int = Field(default=10_000, ge=1, description="Target network update frequency")
-    exploration_fraction: float = Field(default=0.1, ge=0, le=1, description="Training fraction for exploration decay")
-    exploration_initial_eps: float = Field(default=1.0, ge=0, le=1, description="Initial exploration rate")
-    exploration_final_eps: float = Field(default=0.05, ge=0, le=1, description="Final exploration rate")
+    target_update_interval: int = Field(
+        default=10_000, ge=1, description="Target network update frequency"
+    )
+    exploration_fraction: float = Field(
+        default=0.1, ge=0, le=1, description="Training fraction for exploration decay"
+    )
+    exploration_initial_eps: float = Field(
+        default=1.0, ge=0, le=1, description="Initial exploration rate"
+    )
+    exploration_final_eps: float = Field(
+        default=0.05, ge=0, le=1, description="Final exploration rate"
+    )
     max_grad_norm: float = Field(default=10.0, ge=0, description="Max gradient clipping")
 
 
 # Union type for algorithm-specific hyperparameters
-Hyperparams = Union[PPOHyperparams, A2CHyperparams, DQNHyperparams]
+Hyperparams = PPOHyperparams | A2CHyperparams | DQNHyperparams
 
 
 # Legacy compatibility - maps to PPO defaults
 class RunHyperparams(BaseModel):
     """Legacy hyperparams model - use algorithm-specific models for new code."""
+
     learning_rate: float = Field(default=0.0003, gt=0)
     n_steps: int = Field(default=2048, ge=1)
     batch_size: int = Field(default=64, ge=1)
@@ -137,7 +156,8 @@ class RunCreate(RunConfig):
 
 class RunUpdate(BaseModel):
     """Schema for updating a run's configuration (only allowed for specific fields/status)."""
-    hyperparams: Optional[RunHyperparams] = None
+
+    hyperparams: RunHyperparams | None = None
     # Potentially other fields later
 
 
@@ -145,10 +165,10 @@ class RunResponse(RunConfig):
     id: str
     status: RunStatus
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    pid: Optional[int] = Field(default=None, ge=1)
-    error: Optional[str] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    pid: int | None = Field(default=None, ge=1)
+    error: str | None = None
 
     class Config:
         from_attributes = True
@@ -157,13 +177,13 @@ class RunResponse(RunConfig):
 class MetricPoint(BaseModel):
     step: int = Field(ge=0)
     timestamp: float = Field(ge=0)
-    reward: Optional[float] = 0.0
-    avg_reward: Optional[float] = 0.0
-    best_reward: Optional[float] = 0.0
-    fps: Optional[float] = Field(default=0.0, ge=0)
-    loss: Optional[float] = None
-    epsilon: Optional[float] = Field(default=None, ge=0, le=1)
-    details: Optional[Dict[str, Any]] = None
+    reward: float | None = 0.0
+    avg_reward: float | None = 0.0
+    best_reward: float | None = 0.0
+    fps: float | None = Field(default=0.0, ge=0)
+    loss: float | None = None
+    epsilon: float | None = Field(default=None, ge=0, le=1)
+    details: dict[str, Any] | None = None
     type: str = "metric"
 
 

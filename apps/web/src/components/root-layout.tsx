@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "./mode-toggle"
 import { CRTToggle } from "./crt-toggle"
-import { ButtonGroup } from "./ui/button-group"
+import { ButtonGroup, ButtonGroupSeparator } from "./ui/button-group"
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -43,21 +43,17 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild className="md:h-8 md:p-0">
-                <Link to="/">
-                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center">
-                    <Gamepad2 className="size-4" />
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">Retro Runner</span>
-                    <span className="truncate text-xs">AI Training</span>
-                  </div>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <SidebarMenuButton size="lg" asChild>
+            <Link to="/">
+              <div className="flex aspect-square size-8 items-center justify-center bg-sidebar-primary text-sidebar-primary-foreground">
+                <Gamepad2 className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">Retro Runner</span>
+                <span className="truncate text-xs">AI Training</span>
+              </div>
+            </Link>
+          </SidebarMenuButton>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -88,10 +84,11 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <ButtonGroup>
+          <ButtonGroup className="w-full justify-start">
             <ButtonGroup>
               <ModeToggle />
             </ButtonGroup>
+            <ButtonGroupSeparator />
             <ButtonGroup>
               <CRTToggle />
             </ButtonGroup>

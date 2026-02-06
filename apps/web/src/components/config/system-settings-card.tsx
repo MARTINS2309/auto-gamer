@@ -1,19 +1,26 @@
+import { useState } from "react"
+import { FolderOpen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DirectoryPickerDialog } from "@/components/ui/directory-picker-dialog"
 import { LabelWithTooltip } from "./common"
 import type { ConfigUpdate } from "@/lib/schemas"
 
 interface SystemSettingsCardProps {
     formData: ConfigUpdate
     emulators: string[]
-    onChange: (field: keyof ConfigUpdate, value: any) => void
+    onChange: (field: keyof ConfigUpdate, value: ConfigUpdate[keyof ConfigUpdate]) => void
 }
 
 export function SystemSettingsCard({ formData, emulators, onChange }: SystemSettingsCardProps) {
+    const [pickerOpen, setPickerOpen] = useState(false)
+    const [recordingPickerOpen, setRecordingPickerOpen] = useState(false)
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
@@ -63,24 +70,62 @@ export function SystemSettingsCard({ formData, emulators, onChange }: SystemSett
                         <LabelWithTooltip tooltip="Absolute path on the server where training data, logs, and checkpoints are stored.">
                             Data Storage Path
                         </LabelWithTooltip>
-                        <Input
-                            value={formData.storage_path}
-                            onChange={(e) => onChange("storage_path", e.target.value)}
-                            className="font-mono text-sm"
-                        />
+                        <div className="flex gap-1">
+                            <Input
+                                value={formData.storage_path}
+                                onChange={(e) => onChange("storage_path", e.target.value)}
+                                className="font-mono text-sm"
+                            />
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setPickerOpen(true)}
+                                title="Browse directories"
+                            >
+                                <FolderOpen className="size-4" />
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="space-y-2">
-                        <LabelWithTooltip tooltip="Directory to automatically scan for new ROM files on startup or when requested.">
-                            ROMs Import Path
+                        <LabelWithTooltip tooltip="Directory to save BK2 recording files (gameplay movies). If running on same machine as client.">
+                            Recording Path
                         </LabelWithTooltip>
-                        <Input
-                            value={formData.roms_path || ""}
-                            onChange={(e) => onChange("roms_path", e.target.value)}
-                            placeholder="/home/user/games"
-                            className="font-mono text-sm"
-                        />
+                        <div className="flex gap-1">
+                            <Input
+                                value={formData.recording_path || ""}
+                                placeholder="(Optional) Default to current directory"
+                                onChange={(e) => onChange("recording_path", e.target.value)}
+                                className="font-mono text-sm"
+                            />
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setRecordingPickerOpen(true)}
+                                title="Browse directories"
+                            >
+                                <FolderOpen className="size-4" />
+                            </Button>
+                        </div>
                     </div>
+
+                    <DirectoryPickerDialog
+                        open={pickerOpen}
+                        onOpenChange={setPickerOpen}
+                        onSelect={(path) => onChange("storage_path", path)}
+                        title="Select Storage Directory"
+                        description="Browse to the directory where training data will be stored."
+                        initialPath={formData.storage_path || undefined}
+                    />
+
+                    <DirectoryPickerDialog
+                        open={recordingPickerOpen}
+                        onOpenChange={setRecordingPickerOpen}
+                        onSelect={(path) => onChange("recording_path", path)}
+                        title="Select Recording Directory"
+                        description="Browse to the directory where gameplay recordings will be saved."
+                        initialPath={formData.recording_path || undefined}
+                    />
 
                     <div className="pt-2">
                         <Label className="mb-2 block">Installed Cores</Label>

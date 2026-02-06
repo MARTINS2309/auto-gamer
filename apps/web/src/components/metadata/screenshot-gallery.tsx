@@ -22,7 +22,6 @@ interface ScreenshotGalleryProps {
 export function ScreenshotGallery({
   screenshots,
   gameName,
-  variant = "full",
   maxThumbnails = 4,
   className,
 }: ScreenshotGalleryProps) {
@@ -52,7 +51,7 @@ export function ScreenshotGallery({
               key={i}
               type="button"
               onClick={() => openLightbox(i)}
-              className="relative aspect-video rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 cursor-pointer group"
+              className="relative aspect-video overflow-hidden bg-muted cursor-pointer group"
             >
               <img
                 src={url}
@@ -60,7 +59,7 @@ export function ScreenshotGallery({
                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
                 loading="lazy"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+              <div className="absolute inset-0 bg-transparent group-hover:bg-foreground/20 transition-colors" />
             </button>
           ))}
         </div>
@@ -77,14 +76,14 @@ export function ScreenshotGallery({
 
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent
-          className="max-w-4xl w-full p-0 bg-black/95 border-none"
+          className="max-w-4xl w-full p-0 bg-background/95 border-none"
           showCloseButton={false}
         >
           <DialogClose asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-4 right-4 z-50 text-white hover:bg-white/10"
+              className="absolute top-4 right-4 z-50 text-foreground hover:bg-foreground/10"
             >
               <X className="size-6" />
             </Button>
@@ -111,7 +110,7 @@ export function ScreenshotGallery({
             <CarouselNext className="right-4" />
           </Carousel>
 
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-foreground/70 text-sm">
             {currentIndex + 1} / {screenshots.length}
           </div>
         </DialogContent>

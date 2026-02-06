@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, createRunWebSocket, type RunWebSocketCallbacks } from "@/lib/api"
+import { api, createRunWebSocket, type RunWebSocketCallbacks, type FrameInfo } from "@/lib/api"
 import type { Run, RunCreateInput, RunMetrics } from "@/lib/schemas"
 import { toast } from "sonner"
 import { formatDuration, intervalToDuration } from "date-fns"
@@ -11,7 +11,7 @@ export const runKeys = {
   detail: (id: string) => ["run", id] as const,
 }
 
-export function useRuns(options?: { refetchInterval?: number }) {
+export function useRuns(options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: runKeys.all,
     queryFn: api.runs.list,
@@ -32,7 +32,8 @@ export function useRun(id: string) {
 }
 
 export function useRunsByRom(romId: string | null, limit = 5) {
-  const { data: runs = [] } = useRuns()
+  // Disable refetching - this is for display purposes, not live monitoring
+  const { data: runs = [] } = useRuns({ refetchInterval: false })
 
   return romId
     ? runs.filter((r) => r.rom === romId).slice(0, limit)
@@ -101,7 +102,7 @@ export function useDeleteRun() {
 
   return useMutation({
     mutationFn: api.runs.delete,
-    onSuccess: (_, runId) => {
+    onSuccess: () => {
       toast.success("Run deleted")
       queryClient.invalidateQueries({ queryKey: runKeys.all })
     },
@@ -115,7 +116,7 @@ export function useUpdateRun() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (variables: { id: string; updates: { hyperparams: any } }) =>
+    mutationFn: (variables: { id: string; updates: { hyperparams: Record<string, unknown> } }) =>
       api.runs.update(variables.id, variables.updates),
     onSuccess: (run) => {
       toast.success("Run updated")
@@ -127,20 +128,7 @@ export function useUpdateRun() {
     },
   })
 }
-const navigate = useNavigate()
 
-return useMutation({
-  mutationFn: api.runs.delete,
-  onSuccess: () => {
-    toast.success("Run deleted")
-    queryClient.invalidateQueries({ queryKey: runKeys.all })
-    navigate({ to: "/runs" })
-  },
-  onError: (error) => {
-    toast.error(`Failed to delete run: ${error.message}`)
-  },
-})
-}
 
 export function useBulkStopRuns() {
   const stopRun = useStopRun()
@@ -185,6 +173,16 @@ export interface UseRunMetricsResult {
   metrics: RunMetrics | null
   history: RunMetrics[]
   isConnected: boolean
+  /** Grid frame (env_index=0xFF) from training env */
+  gridFrame: FrameInfo | null
+  /** Focused single-env frame (env_index=0-254) */
+  focusedFrame: FrameInfo | null
+  /** Which env is focused (-1 = grid mode) */
+  focusedEnv: number
+  /** Set which env to focus (-1 = grid mode) */
+  setFocusedEnv: (envIndex: number) => void
+  /** Send a command to change frame capture frequency (steps between captures) */
+  setFrameFreq: (freq: number) => void
 }
 
 export function useRunMetrics(
@@ -196,6 +194,9 @@ export function useRunMetrics(
   const [metrics, setMetrics] = useState<RunMetrics | null>(null)
   const [history, setHistory] = useState<RunMetrics[]>([])
   const [wsIsOpen, setWsIsOpen] = useState(false)
+  const [gridFrame, setGridFrame] = useState<FrameInfo | null>(null)
+  const [focusedFrame, setFocusedFrame] = useState<FrameInfo | null>(null)
+  const [focusedEnv, setFocusedEnvState] = useState(-1)
 
   // 1. Load historical metrics on mount
   useEffect(() => {
@@ -224,6 +225,7 @@ export function useRunMetrics(
       onMetrics: (data) => {
         const m: RunMetrics = {
           step: data.step,
+          timestamp: data.timestamp ?? Date.now() / 1000,
           reward: data.reward,
           avg_reward: data.avg_reward,
           best_reward: data.best_reward,
@@ -231,12 +233,20 @@ export function useRunMetrics(
           loss: data.loss,
           epsilon: data.epsilon,
           details: data.details,
+          type: data.type ?? "metric",
         }
         setMetrics(m)
         // Append to history, keeping it reasonable size?
         // Actually, for charts we want full history, but in memory might get large.
         // For now, let's keep it growing.
         setHistory((prev) => [...prev, m])
+      },
+      onFrame: (frame) => {
+        if (frame.envIndex === 0xFF) {
+          setGridFrame(frame)
+        } else {
+          setFocusedFrame(frame)
+        }
       },
       onStatus: () => {
         queryClient.invalidateQueries({ queryKey: runKeys.detail(runId) })
@@ -245,7 +255,7 @@ export function useRunMetrics(
         toast.error(`Run error: ${error}`)
       },
       onConnectionError: () => {
-        // toast.error("WebSocket connection lost") 
+        // toast.error("WebSocket connection lost")
       },
     }
 
@@ -263,7 +273,23 @@ export function useRunMetrics(
   // Derive isConnected: only connected when running AND websocket is open
   const isConnected = isRunning && wsIsOpen
 
-  return { metrics, history, isConnected }
+  const setFrameFreq = useCallback((freq: number) => {
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: "set_frame_freq", value: freq }))
+    }
+  }, [])
+
+  const setFocusedEnv = useCallback((envIndex: number) => {
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: "set_focused_env", value: envIndex }))
+    }
+    setFocusedEnvState(envIndex)
+    if (envIndex === -1) setFocusedFrame(null)
+  }, [])
+
+  return { metrics, history, isConnected, gridFrame, focusedFrame, focusedEnv, setFocusedEnv, setFrameFreq }
 }
 
 // =============================================================================
@@ -280,6 +306,7 @@ export interface UseAggregatedMetricsResult {
   aggregated: AggregatedMetrics
   isConnected: boolean
   connectionCount: number
+  metricsMap: Map<string, RunMetrics>
 }
 
 export function useAggregatedRunMetrics(
@@ -332,12 +359,14 @@ export function useAggregatedRunMetrics(
           onMetrics: (data) => {
             const m: RunMetrics = {
               step: data.step,
+              timestamp: data.timestamp ?? Date.now() / 1000,
               reward: data.reward,
               avg_reward: data.avg_reward,
               best_reward: data.best_reward,
               fps: data.fps,
               loss: data.loss,
               epsilon: data.epsilon,
+              type: data.type ?? "metric",
             }
             setMetricsMap((prev) => new Map(prev).set(runId, m))
           },
@@ -367,8 +396,10 @@ export function useAggregatedRunMetrics(
 
     // Cleanup on unmount
     return () => {
-      wsMapRef.current.forEach((ws) => ws.close())
-      wsMapRef.current.clear()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const wsMap = wsMapRef.current
+      wsMap.forEach((ws) => ws.close())
+      wsMap.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRunIdsJson, queryClient])
@@ -382,7 +413,7 @@ export function useAggregatedRunMetrics(
 
     metricsMap.forEach((metrics) => {
       totalSteps += metrics.step
-      if (metrics.best_reward > bestReward) {
+      if (metrics.best_reward != null && metrics.best_reward > bestReward) {
         bestReward = metrics.best_reward
       }
       if (metrics.fps && metrics.fps > 0) {
@@ -402,6 +433,7 @@ export function useAggregatedRunMetrics(
     aggregated,
     isConnected: connectedSet.size > 0,
     connectionCount: connectedSet.size,
+    metricsMap,
   }
 }
 
@@ -410,6 +442,13 @@ export function useAggregatedRunMetrics(
 // =============================================================================
 
 export function useRunStats(runs: Run[]) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000)
+    return () => clearInterval(timer)
+  }, [])
+
   const activeRuns = runs.filter((r) => r.status === "running")
   const completedRuns = runs.filter((r) => r.status === "completed")
   const failedRuns = runs.filter((r) => r.status === "failed")
@@ -425,13 +464,13 @@ export function useRunStats(runs: Run[]) {
 
     const duration = intervalToDuration({
       start: startTimes[0],
-      end: Date.now(),
+      end: now,
     })
 
     return (
       formatDuration(duration, { format: ["hours", "minutes"] }) || "< 1m"
     )
-  }, [activeRuns])
+  }, [activeRuns, now])
 
   return {
     total: runs.length,

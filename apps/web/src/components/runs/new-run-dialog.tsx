@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useForm } from "react-hook-form"
+import { useState, useRef, useEffect } from "react"
+import { useForm, type UseFormReturn } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRoms, useCreateRun, useRomStates, useGameMetadata } from "@/hooks"
+import { useRoms, useCreateRun, useRomStates } from "@/hooks"
 import { RunCreateSchema, DEFAULT_HYPERPARAMS } from "@/lib/schemas"
 import type { RunCreateInput } from "@/lib/schemas"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
@@ -43,9 +43,11 @@ import type { Algorithm } from "@/lib/schemas"
 interface NewRunDialogProps {
     trigger?: React.ReactNode
     initialValues?: Partial<RunCreateInput>
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
 }
 
-function StateSelector({ form, romId }: { form: any, romId: string }) {
+function StateSelector({ form, romId }: { form: UseFormReturn<RunCreateInput>, romId: string }) {
     const { data: states = [], isLoading } = useRomStates(romId)
 
     return (
@@ -81,8 +83,13 @@ function StateSelector({ form, romId }: { form: any, romId: string }) {
     )
 }
 
-export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
-    const [open, setOpen] = useState(false)
+export function NewRunDialog({ trigger, initialValues, open: controlledOpen, onOpenChange }: NewRunDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false)
+    const open = controlledOpen ?? internalOpen
+    const setOpen = (value: boolean) => {
+        setInternalOpen(value)
+        onOpenChange?.(value)
+    }
     const { data: roms = [] } = useRoms()
     const createRun = useCreateRun()
 
@@ -99,17 +106,28 @@ export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
         },
     })
 
-    // Reset form when initialValues change or dialog opens
-    // (Optional but good practice if controlled externally)
+    // Reset form when controlled open changes with new initialValues
+    const prevOpenRef = useRef(false)
+    useEffect(() => {
+        if (open && !prevOpenRef.current && initialValues) {
+            form.reset({
+                algorithm: "PPO",
+                max_steps: 1_000_000,
+                n_envs: 8,
+                hyperparams: DEFAULT_HYPERPARAMS,
+                checkpoint_interval: 50_000,
+                frame_capture_interval: 10_000,
+                ...initialValues,
+            })
+        }
+        prevOpenRef.current = open
+    }, [open, initialValues, form])
 
-    // Filter playable roms
-    const playableRoms = roms.filter(r => r.playable)
+    // Filter trainable roms (has ROM + connector)
+    const trainableRoms = roms.filter(r => r.has_rom && r.has_connector)
     const selectedRom = form.watch("rom")
+    // ROM data now includes all metadata directly
     const activeRom = roms.find(r => r.id === selectedRom)
-    const { data: metadata, isLoading: isMetadataLoading } = useGameMetadata(
-        activeRom?.system ?? null,
-        activeRom?.id ?? null
-    )
 
     const onSubmit = (values: RunCreateInput) => {
         createRun.mutate(values, {
@@ -149,29 +167,26 @@ export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                        {metadata && (
-                            <div className="flex gap-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                                {metadata.cover_url && (
+                        {activeRom && (
+                            <div className="flex gap-4 p-4 border bg-muted/50">
+                                {activeRom.thumbnail_url && (
                                     <img
-                                        src={metadata.cover_url.replace("t_thumb", "t_cover_big")}
-                                        alt={metadata.name}
-                                        className="w-24 h-32 object-cover rounded shadow"
+                                        src={activeRom.thumbnail_url}
+                                        alt={activeRom.display_name}
+                                        className="w-24 h-32 object-cover shadow"
                                     />
                                 )}
                                 <div className="space-y-2">
-                                    <h3 className="font-semibold text-lg">{metadata.name}</h3>
-                                    <p className="text-sm text-muted-foreground line-clamp-3">
-                                        {metadata.summary || "No description available."}
-                                    </p>
+                                    <h3 className="font-semibold text-lg">{activeRom.display_name}</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {metadata.genres.slice(0, 3).map(g => (
-                                            <span key={g} className="text-xs px-2 py-1 bg-background rounded border">
+                                        {activeRom.genres?.slice(0, 3).map(g => (
+                                            <span key={g} className="text-xs px-2 py-1 bg-background border">
                                                 {g}
                                             </span>
                                         ))}
-                                        {metadata.rating && (
-                                            <span className="text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 rounded border border-yellow-200">
-                                                ★ {Math.round(metadata.rating)}%
+                                        {activeRom.rating && (
+                                            <span className="text-xs px-2 py-1 bg-chart-3/20 text-chart-3 border border-chart-3/30">
+                                                ★ {Math.round(activeRom.rating)}%
                                             </span>
                                         )}
                                     </div>
@@ -193,9 +208,9 @@ export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {playableRoms.map((rom) => (
+                                                {trainableRoms.map((rom) => (
                                                     <SelectItem key={rom.id} value={rom.id}>
-                                                        {rom.name} ({rom.system})
+                                                        {rom.display_name} ({rom.system})
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -269,7 +284,7 @@ export function NewRunDialog({ trigger, initialValues }: NewRunDialogProps) {
                             />
                         </div>
 
-                        <div className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-900/50">
+                        <div className="border p-4 bg-muted/50">
                             <HyperparametersCard
                                 algorithm={selectedAlgorithm}
                                 hparams={currentHParams || DEFAULT_HYPERPARAMS}

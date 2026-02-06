@@ -1,34 +1,38 @@
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Optional
 
-from ..services.play_manager import play_manager
+from ..models.db import RomModel, SessionLocal
+from ..services.play_manager import NeedsConnectorError, play_manager
+from .config import load_config
 
 router = APIRouter()
 
 
 class PlaySessionResponse(BaseModel):
     """Response for starting a play session."""
+
     session_id: str
     rom_id: str
-    state: Optional[str]
+    state: str | None
     message: str
 
 
 class SessionInfoResponse(BaseModel):
     """Response with session info."""
+
     id: str
     rom_id: str
-    state: Optional[str]
+    state: str | None
     started_at: str
     is_alive: bool
 
 
 @router.post("/play/{rom_id}", response_model=PlaySessionResponse)
-async def start_play_session(
+def start_play_session(
     rom_id: str,
-    state: Optional[str] = Query(None, description="Save state to load"),
-    players: int = Query(1, ge=1, le=2, description="Number of players (1-2)")
+    state: str | None = Query(None, description="Save state to load"),
+    players: int = Query(1, ge=1, le=2, description="Number of players (1-2)"),
 ):
     """
     Start an interactive play session for a ROM.
@@ -45,25 +49,62 @@ async def start_play_session(
         Session information including the session ID
     """
     try:
+        # Resolve ROM ID to game name (connector_id) and system
+        db = SessionLocal()
+        rom_system = None
+        try:
+            rom = db.query(RomModel).filter(RomModel.id == rom_id).first()
+            target_game = rom.connector_id if rom and rom.connector_id else rom_id
+            rom_system = str(rom.system) if rom else None
+        finally:
+            db.close()
+
+        config = load_config()
+
+        # Look up keyboard mapping for this system
+        keyboard_mapping = None
+        if rom_system and rom_system in config.input.keyboard_mappings:
+            keyboard_mapping = {
+                k: v
+                for k, v in config.input.keyboard_mappings[rom_system].model_dump().items()
+                if v is not None
+            }
+
+        # Controller config (button indices)
+        controller_config = (
+            config.input.controller.model_dump() if config.input.controller.enabled else None
+        )
+
         session_id = play_manager.start_session(
-            rom_id=rom_id,
+            rom_id=target_game,
             state=state,
-            players=players
+            players=players,
+            recording_path=config.recording_path,
+            keyboard_mapping=keyboard_mapping,
+            controller_config=controller_config,
         )
 
         return PlaySessionResponse(
             session_id=session_id,
             rom_id=rom_id,
             state=state,
-            message="Play session started. A game window should open shortly."
+            message="Play session started. A game window should open shortly.",
         )
 
+    except NeedsConnectorError as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": str(e),
+                "code": "NEEDS_CONNECTOR",
+            },
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/play/{session_id}")
-async def stop_play_session(session_id: str):
+def stop_play_session(session_id: str):
     """
     Stop an active play session.
 
@@ -80,7 +121,7 @@ async def stop_play_session(session_id: str):
 
 
 @router.get("/play/{session_id}", response_model=SessionInfoResponse)
-async def get_play_session(session_id: str):
+def get_play_session(session_id: str):
     """
     Get information about a play session.
 
@@ -98,7 +139,7 @@ async def get_play_session(session_id: str):
 
 
 @router.get("/play", response_model=list[SessionInfoResponse])
-async def list_play_sessions():
+def list_play_sessions():
     """
     List all active play sessions.
 

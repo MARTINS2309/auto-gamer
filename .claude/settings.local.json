@@ -49,7 +49,20 @@
       "Bash(__NEW_LINE_a826699056468a10__ echo \"Super Mario World \\(USA\\):\")",
       "Bash(__NEW_LINE_6f09d34e71182cc8__ echo \"Sonic The Hedgehog \\(USA\\):\")",
       "WebFetch(domain:api-docs.igdb.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(pnpm --filter web exec tsc:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm typecheck:api:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(pnpm typecheck:web:*)",
+      "Bash(rocminfo:*)",
+      "Bash(.venv/bin/ruff check:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(pnpm lint:api:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(find:*)",
+      "Bash(apps/api/.venv/bin/ruff check:*)",
+      "Bash(pnpm lint:web:*)"
     ]
   }
 }

@@ -21,6 +21,12 @@ if [ ! -z "$EXISTING_PID" ]; then
 fi
 
 cd "$API_DIR"
+
+# Source GPU environment variables (ROCm, CUDA paths, etc.)
+if [ -f ".gpu-env" ]; then
+    source .gpu-env
+fi
+
 source .venv/bin/activate
 
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000

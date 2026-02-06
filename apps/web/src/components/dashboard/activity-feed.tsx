@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 import type { Run, ActivityEventType, ActivityEvent } from "@/lib/schemas"
 import { useActivityFeed } from "@/hooks/use-activity"
-import { useStopRun, useResumeRun, useRoms, useGameMetadata } from "@/hooks"
+import { useStopRun, useResumeRun, useRoms } from "@/hooks"
 
 interface ActivityFeedProps {
   runs: Run[]
@@ -36,11 +36,11 @@ const EVENT_ICONS: Record<ActivityEventType, React.ElementType> = {
 }
 
 const EVENT_COLORS: Record<ActivityEventType, string> = {
-  run_started: "text-green-500",
+  run_started: "text-chart-1",
   run_stopped: "text-muted-foreground",
-  run_completed: "text-blue-500",
+  run_completed: "text-primary",
   run_failed: "text-destructive",
-  milestone_reward: "text-chart-1",
+  milestone_reward: "text-chart-2",
   milestone_steps: "text-chart-4",
 }
 
@@ -79,19 +79,13 @@ function ActivityItem({
   const run = runs.find((r) => r.id === event.runId)
   const runStatus = run?.status ?? null
 
-  // Metadata fetching
+  // ROM data now includes all metadata directly
   const { data: roms = [] } = useRoms()
   const romId = run?.rom || event.runName // Fallback if run not found but we have name
   const rom = roms.find(r => r.id === romId)
 
-  // We need system and game ID for metadata
-  // If run is lost, we might not have 'rom' full object from just ID if not in list
-  const { data: metadata } = useGameMetadata(
-    rom?.system ?? null,
-    rom?.id ?? null
-  )
-
-  const displayName = metadata?.name ?? rom?.name ?? event.runName
+  const displayName = rom?.display_name ?? event.runName
+  const thumbnailUrl = rom?.thumbnail_url
 
   return (
     <div
@@ -99,11 +93,11 @@ function ActivityItem({
     >
       <div className="mt-0.5 relative">
         <Icon className={`size-4 ${color}`} />
-        {metadata?.cover_url && (
+        {thumbnailUrl && (
           <img
-            src={metadata.cover_url}
-            alt={metadata.name}
-            className="absolute -top-1 -left-1 w-6 h-6 object-cover rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            src={thumbnailUrl}
+            alt={displayName}
+            className="absolute -top-1 -left-1 w-6 h-6 object-cover opacity-0 group-hover:opacity-100 transition-opacity"
           />
         )}
       </div>

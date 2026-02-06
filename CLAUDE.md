@@ -40,6 +40,13 @@ pnpm dev:api      # Start FastAPI backend (port 8000)
 
 # Build
 pnpm build
+
+# Linting & Formatting
+pnpm lint         # Lint both web & api
+pnpm typecheck    # Typecheck both web & api
+pnpm lint:api     # Lint API only
+pnpm format:api   # Format API code
+pnpm typecheck:api # Typecheck API only
 ```
 
 ## Communication Flow
