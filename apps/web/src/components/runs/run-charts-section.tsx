@@ -7,17 +7,6 @@ interface RunChartsSectionProps {
 }
 
 export function RunChartsSection({ history }: RunChartsSectionProps) {
-    // Debug: collect ALL unique detail keys across ALL metrics
-    const allDetailKeys = new Set<string>()
-    history.forEach(m => {
-        if (m.details) {
-            Object.keys(m.details).forEach(k => allDetailKeys.add(k))
-        }
-    })
-    if (allDetailKeys.size > 0) {
-        console.log("[Charts] All detail keys across history:", Array.from(allDetailKeys))
-    }
-
     // Check for availability of advanced metrics (from SB3 logger)
     const hasValueLoss = history.some(m => m.details?.["train/value_loss"] !== undefined);
     const hasPolicyLoss = history.some(m => m.details?.["train/policy_gradient_loss"] !== undefined);
@@ -101,7 +90,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={history.map((m) => m.loss ?? 0).filter(v => v !== 0)}
-                            color="bg-orange-500"
+                            color="bg-chart-3"
                             className="items-end"
                             label="Loss"
                         />
@@ -117,7 +106,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={getStream("train/value_loss")}
-                            color="bg-orange-500"
+                            color="bg-chart-3"
                             className="items-end"
                             label="Value Loss"
                         />
@@ -133,7 +122,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={getStream("train/policy_gradient_loss")}
-                            color="bg-blue-500"
+                            color="bg-chart-4"
                             className="items-end"
                             label="Policy Loss"
                         />
@@ -149,7 +138,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={getStream("train/entropy_loss")}
-                            color="bg-purple-500"
+                            color="bg-chart-5"
                             className="items-end"
                             label="Entropy"
                         />
@@ -165,7 +154,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={getStream("train/approx_kl")}
-                            color="bg-indigo-500"
+                            color="bg-chart-2"
                             className="items-end"
                             label="KL Div"
                         />
@@ -181,7 +170,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={getStream("train/explained_variance")}
-                            color="bg-cyan-500"
+                            color="bg-chart-4"
                             className="items-end"
                             label="Variance"
                         />
@@ -197,7 +186,7 @@ export function RunChartsSection({ history }: RunChartsSectionProps) {
                     <CardContent className="h-60 pt-4">
                         <MetricsChart
                             data={getStream("train/learning_rate")}
-                            color="bg-teal-500"
+                            color="bg-chart-3"
                             className="items-end"
                             label="LR"
                         />

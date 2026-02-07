@@ -177,16 +177,41 @@ def delete_run(run_id: str):
 
 @router.post("/runs/{run_id}/resume", response_model=RunResponse)
 def resume_run(run_id: str):
-    """Resume a paused run - not fully implemented in runner yet, essentially a restart or no-op."""
+    """Resume a stopped/failed run from its latest checkpoint."""
     db = SessionLocal()
     try:
         run = get_run_or_404(run_id, db)
-        # TODO: Implement resume logic in RunManager
-        # For now, just mark it as running if it was paused?
-        # SB3 doesn't support easy pause/resume without save/load cycle.
-        # return {"message": "Resume not fully implemented yet"}
 
-        # Just return the run object to satisfy frontend schema
+        if run.status not in [RunStatus.STOPPED.value, RunStatus.FAILED.value, RunStatus.COMPLETED.value]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot resume run in '{run.status}' state. Must be stopped, failed, or completed.",
+            )
+
+        config = {
+            "rom": run.rom,
+            "state": run.state,
+            "algorithm": run.algorithm,
+            "hyperparams": run.hyperparams if isinstance(run.hyperparams, dict) else {},
+            "n_envs": run.n_envs,
+            "max_steps": run.max_steps,
+            "id": run.id,
+        }
+
+        # Resolve ROM to connector for retro
+        run_rom_model = db.query(RomModel).filter(RomModel.id == run.rom).first()
+        if run_rom_model and run_rom_model.connector_id:
+            config["rom"] = run_rom_model.connector_id
+
+        global_config = load_config()
+        config["device"] = global_config.default_device
+
+        try:
+            run_manager.resume_run(run.id, config)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        db.refresh(run)
         return run
     finally:
         db.close()
@@ -205,10 +230,14 @@ def stop_run(run_id: str):
 
 
 @router.get("/runs/{run_id}/metrics", response_model=list[MetricPoint])
-def get_run_metrics(run_id: str):
+def get_run_metrics(run_id: str, limit: int = 2000, offset: int = 0):
     """
     Get historical metrics for a run.
     Now fetches primarily from DB, falls back to file if empty (legacy support).
+
+    Args:
+        limit: Max metrics to return (default 2000, 0 = all)
+        offset: Skip first N metrics
     """
     db = SessionLocal()
     try:
@@ -218,12 +247,16 @@ def get_run_metrics(run_id: str):
             raise HTTPException(status_code=404, detail="Run not found")
 
         # Try DB first
-        db_metrics = (
+        query = (
             db.query(RunMetricModel)
             .filter(RunMetricModel.run_id == run_id)
             .order_by(RunMetricModel.step)
-            .all()
         )
+        if offset > 0:
+            query = query.offset(offset)
+        if limit > 0:
+            query = query.limit(limit)
+        db_metrics = query.all()
         if db_metrics:
             return db_metrics
     finally:
@@ -248,6 +281,12 @@ def get_run_metrics(run_id: str):
         print(f"Error reading metrics for run {run_id}: {e}")
         traceback.print_exc()
         return []
+
+    # Apply pagination to file-based metrics
+    if offset > 0:
+        metrics = metrics[offset:]
+    if limit > 0:
+        metrics = metrics[:limit]
 
     return metrics
 
@@ -289,11 +328,14 @@ def get_run_recording(run_id: str, filename: str):
         db.close()
 
     # Validate filename to prevent path traversal
-    if ".." in filename or "/" in filename or "\\" in filename:
+    recordings_dir = Path(f"./data/runs/{run_id}/recordings").resolve()
+    file_path = (recordings_dir / filename).resolve()
+
+    # Ensure resolved path is within the allowed directory
+    if not file_path.is_relative_to(recordings_dir):
         raise HTTPException(status_code=400, detail="Invalid filename")
 
-    file_path = Path(f"./data/runs/{run_id}/recordings/{filename}")
-    if not file_path.exists() or not file_path.suffix == ".bk2":
+    if not file_path.exists() or file_path.suffix != ".bk2":
         raise HTTPException(status_code=404, detail="Recording not found")
 
     return FileResponse(

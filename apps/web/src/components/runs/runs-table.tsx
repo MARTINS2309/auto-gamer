@@ -2,13 +2,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Square, Copy, ExternalLink } from "lucide-react"
+import { Square, Copy, ExternalLink, Plus } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { StatusBadge } from "@/components/shared"
-import type { Run } from "@/lib/schemas"
-import { useRoms } from "@/hooks"
+import { NewRunDialog } from "@/components/runs/new-run-dialog"
+import type { Run, RomListItem } from "@/lib/schemas"
 
 interface RunsTableProps {
   runs: Run[]
@@ -17,6 +17,7 @@ interface RunsTableProps {
   onToggleSelect: (id: string) => void
   onToggleSelectAll: () => void
   onStopRun: (id: string) => void
+  romsMap?: Map<string, RomListItem>
 }
 
 function copyId(id: string) {
@@ -28,17 +29,15 @@ function RunRow({
   run,
   isSelected,
   onToggleSelect,
-  onStopRun
+  onStopRun,
+  rom,
 }: {
   run: Run
   isSelected: boolean
   onToggleSelect: (id: string) => void
   onStopRun: (id: string) => void
+  rom: RomListItem | undefined
 }) {
-  const { data: roms = [] } = useRoms()
-  const rom = roms.find(r => r.id === run.rom)
-
-  // ROM data now includes all metadata directly
   const displayName = rom?.display_name ?? run.rom
   const thumbnailUrl = rom?.thumbnail_url
 
@@ -112,6 +111,7 @@ export function RunsTable({
   onToggleSelect,
   onToggleSelectAll,
   onStopRun,
+  romsMap,
 }: RunsTableProps) {
   if (isLoading) {
     return (
@@ -123,8 +123,16 @@ export function RunsTable({
 
   if (runs.length === 0) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
-        No runs found
+      <div className="p-12 text-center text-muted-foreground space-y-3">
+        <p>No runs found</p>
+        <NewRunDialog
+          trigger={
+            <Button variant="outline" size="sm">
+              <Plus className="size-4 mr-2" />
+              Start your first run
+            </Button>
+          }
+        />
       </div>
     )
   }
@@ -156,6 +164,7 @@ export function RunsTable({
             isSelected={selected.has(run.id)}
             onToggleSelect={onToggleSelect}
             onStopRun={onStopRun}
+            rom={romsMap?.get(run.rom)}
           />
         ))}
       </TableBody>

@@ -21,14 +21,6 @@ async def websocket_endpoint(websocket: WebSocket, run_id: str):
             action = data.get("action")
             if action == "stop":
                 await asyncio.to_thread(run_manager.stop_run, run_id)
-            elif action == "set_frame_freq":
-                freq = int(data.get("value", 30))
-                run_manager.set_frame_freq(run_id, freq)
-                await websocket.send_json({"type": "frame_freq", "value": freq})
-            elif action == "set_focused_env":
-                env_index = int(data.get("value", -1))
-                run_manager.set_focused_env(run_id, env_index)
-                await websocket.send_json({"type": "focused_env", "value": env_index})
     except WebSocketDisconnect:
         ws_manager.disconnect(run_id, websocket)
     except Exception:

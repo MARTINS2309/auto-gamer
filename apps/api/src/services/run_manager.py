@@ -8,14 +8,13 @@ import threading
 from datetime import datetime
 
 from ..models.db import RunMetricModel, RunModel, RunStatus, SessionLocal
-from ..training.runner import training_worker
+from ..training.runner import find_latest_checkpoint, training_worker
 from .ws_manager import manager as ws_manager
 
 
 class RunManager:
     def __init__(self):
         self.active_runs: dict[str, tuple[multiprocessing.Process, multiprocessing.Queue]] = {}
-        self.shared_values: dict[str, dict] = {}  # run_id -> {"frame_freq": Value}
         self.lock = threading.Lock()
         self.loop = None
         # Ensure 'spawn' is used for stability
@@ -32,20 +31,13 @@ class RunManager:
             if run_id in self.active_runs:
                 raise Exception("Run already active")
 
-            # Create Queue and shared values
+            # Create Queue
             q: multiprocessing.Queue[dict] = multiprocessing.Queue()
-            default_frame_freq = max(1, config.get("frame_capture_interval", 30))
-            shared_frame_freq = multiprocessing.Value("i", default_frame_freq)
-            shared_focused_env = multiprocessing.Value("i", -1)
-            self.shared_values[run_id] = {
-                "frame_freq": shared_frame_freq,
-                "focused_env": shared_focused_env,
-            }
 
             # Start Process
             process = multiprocessing.Process(
                 target=training_worker,
-                args=(run_id, config, q, shared_frame_freq, shared_focused_env),
+                args=(run_id, config, q),
                 daemon=False,
             )
             process.start()
@@ -80,7 +72,6 @@ class RunManager:
 
                 if run_id in self.active_runs:
                     del self.active_runs[run_id]
-                self.shared_values.pop(run_id, None)
 
         # DB update
         db = SessionLocal()
@@ -92,6 +83,20 @@ class RunManager:
                 db.commit()
         finally:
             db.close()
+
+    def resume_run(self, run_id: str, config: dict) -> int:
+        """Resume a stopped/failed run from its latest checkpoint.
+        Returns the step count being resumed from, or raises if no checkpoint found.
+        """
+        checkpoint_path, resumed_steps = find_latest_checkpoint(run_id)
+        if not checkpoint_path:
+            raise Exception(f"No checkpoint found for run {run_id}")
+
+        config["resume_from"] = checkpoint_path
+        config["resumed_steps"] = resumed_steps
+
+        self.start_run(run_id, config)
+        return resumed_steps
 
     def _monitor_run(self, run_id: str, q: multiprocessing.Queue, process: multiprocessing.Process):
         """Background thread to monitor queue from subprocess."""
@@ -237,11 +242,17 @@ class RunManager:
                             break
                     elif msg_type == "episode":
                         # Forward episode completion events to WebSocket
-                        # Update best reward tracker
                         ep_best = msg.get("best_reward", -float("inf"))
                         if ep_best > best_reward:
                             best_reward = ep_best
                         self._emit_event(run_id, msg)
+
+                        # Persist to JSONL so episode count survives page refresh
+                        try:
+                            with open(metrics_file, "a") as f:
+                                f.write(json.dumps(msg) + "\n")
+                        except Exception:
+                            pass
 
                     elif msg_type == "error":
                         # Status update handles error field, but maybe emit specific error event?
@@ -268,21 +279,6 @@ class RunManager:
             except Exception as e:
                 print(f"Error deleting run data {run_id}: {e}")
 
-    def set_frame_freq(self, run_id: str, freq: int):
-        """Update frame capture frequency for a running training process."""
-        freq = max(1, min(freq, 1000))
-        with self.lock:
-            vals = self.shared_values.get(run_id)
-            if vals and "frame_freq" in vals:
-                vals["frame_freq"].value = freq
-                print(f"[RunManager] Set frame_freq={freq} for run {run_id}")
-
-    def get_frame_freq(self, run_id: str) -> int | None:
-        with self.lock:
-            vals = self.shared_values.get(run_id)
-            if vals and "frame_freq" in vals:
-                return int(vals["frame_freq"].value)
-        return None
 
     def cleanup_all(self):
         """Terminate all active training processes (called on shutdown)."""
@@ -337,14 +333,6 @@ class RunManager:
                 print("[RunManager] No orphaned runs found")
         finally:
             db.close()
-
-    def set_focused_env(self, run_id: str, env_index: int):
-        """Update which env is focused for a running training process."""
-        with self.lock:
-            vals = self.shared_values.get(run_id)
-            if vals and "focused_env" in vals:
-                vals["focused_env"].value = env_index
-                print(f"[RunManager] Set focused_env={env_index} for run {run_id}")
 
     def _emit_event(self, run_id: str, msg: dict):
         if self.loop and ws_manager:

@@ -84,7 +84,7 @@ export function DashboardPage() {
                 <CardTitle>Activity</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <ActivityFeed runs={runs} limit={8} />
+                <ActivityFeed runs={runs} roms={roms} limit={8} />
               </CardContent>
             </Card>
           </div>

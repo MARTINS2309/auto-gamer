@@ -5,6 +5,7 @@ import traceback
 
 import torch
 from stable_baselines3 import A2C, DQN, PPO
+from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import CSVOutputFormat, HumanOutputFormat, Logger
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
@@ -13,12 +14,51 @@ from .logging_utils import QueueWriter
 from .wrappers import make_retro_env
 
 
+def find_latest_checkpoint(run_id: str) -> tuple[str | None, int]:
+    """Find the latest checkpoint for a run. Returns (path, step) or (None, 0)."""
+    checkpoint_dir = f"./data/runs/{run_id}/checkpoints"
+    final_path = f"./data/runs/{run_id}/final_model.zip"
+
+    # Prefer final_model if it exists (completed run)
+    if os.path.exists(final_path):
+        # Extract step count from the run's metrics
+        import json
+        metrics_file = f"./data/runs/{run_id}/metrics.jsonl"
+        last_step = 0
+        if os.path.exists(metrics_file):
+            with open(metrics_file) as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            last_step = max(last_step, data.get("step", 0))
+                        except json.JSONDecodeError:
+                            continue
+        return final_path, last_step
+
+    if not os.path.exists(checkpoint_dir):
+        return None, 0
+
+    # Find latest checkpoint by step number
+    best_path = None
+    best_step = 0
+    for fname in os.listdir(checkpoint_dir):
+        if fname.endswith(".zip") and fname.startswith("rl_model_"):
+            try:
+                step = int(fname.replace("rl_model_", "").replace("_steps.zip", ""))
+                if step > best_step:
+                    best_step = step
+                    best_path = os.path.join(checkpoint_dir, fname.replace(".zip", ""))
+            except ValueError:
+                continue
+
+    return best_path, best_step
+
+
 def training_worker(
     run_id: str,
     config: dict,
     queue: multiprocessing.Queue,
-    shared_frame_freq: "multiprocessing.sharedctypes.Synchronized[int] | None" = None,
-    shared_focused_env: "multiprocessing.sharedctypes.Synchronized[int] | None" = None,
 ):
     """
     Worker function to run the training loop in a separate process.
@@ -82,7 +122,7 @@ def training_worker(
             env = DummyVecEnv([make_env_with_record])
 
         # Select Algorithm
-        ALGO_MAP = {"PPO": PPO, "A2C": A2C, "DQN": DQN}
+        ALGO_MAP: dict[str, type[PPO] | type[A2C] | type[DQN]] = {"PPO": PPO, "A2C": A2C, "DQN": DQN}
         AlgoClass = ALGO_MAP.get(algo_name, PPO)
 
         # Init Model
@@ -156,34 +196,46 @@ def training_worker(
         for i, fmt in enumerate(custom_logger.output_formats):
             print(f"[{run_id}]   [{i}] {type(fmt).__name__}: {fmt}", flush=True)
 
-        model = AlgoClass("CnnPolicy", env, device=device, **model_kwargs)
+        # Check for resume: load from checkpoint if available
+        resume_path = config.get("resume_from")
+        resumed_steps = 0
+        if resume_path:
+            print(f"[{run_id}] Resuming from checkpoint: {resume_path}")
+            model = AlgoClass.load(resume_path, env=env, device=device)
+            resumed_steps = config.get("resumed_steps", 0)
+            print(f"[{run_id}] Loaded checkpoint at step {resumed_steps}")
+        else:
+            model = AlgoClass("CnnPolicy", env, device=device, **model_kwargs)
+
         model.set_logger(custom_logger)
 
-        # Debug: verify logger was set correctly
-        print(f"[{run_id}] After set_logger - model._custom_logger: {model._custom_logger}", flush=True)
-        print(f"[{run_id}] model.logger.output_formats: {model.logger.output_formats}", flush=True)
-        for i, fmt in enumerate(model.logger.output_formats):
-            print(f"[{run_id}]   [{i}] {type(fmt).__name__}", flush=True)
-
         # Callbacks
-        # Configurable frequencies
-        # metric_freq: How often to send stats (steps). Default 100 for smoother updates
         metric_freq = max(1, config.get("metric_interval", 100) // n_envs)
-
-        # frame_freq: How often to send frames (steps). Default 60 (~1s at 60fps)
-        # Note: If frame streaming is crucial, this should be lower, but affects performance.
         frame_freq = max(1, config.get("frame_capture_interval", 60) // n_envs)
 
-        callback = BroadcastingCallback(
+        checkpoint_dir = f"./data/runs/{run_id}/checkpoints"
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        checkpoint_freq = max(1, config.get("checkpoint_interval", 50_000) // n_envs)
+
+        broadcast_cb = BroadcastingCallback(
             queue,
             check_freq=metric_freq,
             frame_freq=frame_freq,
-            shared_frame_freq=shared_frame_freq,
-            shared_focused_env=shared_focused_env,
+        )
+        checkpoint_cb = CheckpointCallback(
+            save_freq=checkpoint_freq,
+            save_path=checkpoint_dir,
+            name_prefix="rl_model",
+            verbose=0,
         )
 
-        # Learn
-        model.learn(total_timesteps=int(total_timesteps), callback=callback)
+        # Learn — remaining steps if resuming
+        remaining_steps = int(total_timesteps) - resumed_steps
+        if remaining_steps <= 0:
+            print(f"[{run_id}] Already completed all {total_timesteps} steps")
+            queue.put({"type": "status", "status": "completed"})
+            return
+        model.learn(total_timesteps=remaining_steps, callback=[broadcast_cb, checkpoint_cb])
 
         # Save final model
         save_path = f"./data/runs/{run_id}/final_model"

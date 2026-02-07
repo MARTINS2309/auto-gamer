@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react"
-import { Search, Square, Trash2 } from "lucide-react"
+import { Download, Search, Square, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -77,8 +77,12 @@ export function RunsPage() {
   const [algorithmFilter, setAlgorithmFilter] = useState("all")
   const [systemFilter, setSystemFilter] = useState("all")
 
-  const romsMap = useMemo(() => {
+  const romsSystemMap = useMemo(() => {
     return new Map(roms.map((rom) => [rom.id, { system: rom.system }]))
+  }, [roms])
+
+  const romsMap = useMemo(() => {
+    return new Map(roms.map((rom) => [rom.id, rom]))
   }, [roms])
 
   const algorithms = useMemo(() => {
@@ -96,25 +100,47 @@ export function RunsPage() {
     search,
     statusFilter,
     algorithmFilter,
-    romsMap,
+    romsSystemMap,
     systemFilter
   )
   const { selected, toggleSelect, toggleSelectAll, clearSelection } = useRunSelection(filteredRuns)
 
   const handleBulkStop = () => {
-    selected.forEach((id) => {
+    const toStop = [...selected].filter((id) => {
       const run = runs.find((r) => r.id === id)
-      if (run?.status === "running") {
-        stopRun.mutate(id)
-      }
+      return run?.status === "running"
     })
+    if (toStop.length === 0) return
+    toStop.forEach((id) => stopRun.mutate(id))
     clearSelection()
   }
 
   const handleBulkDelete = () => {
-    bulkDelete.mutate([...selected])
-    clearSelection()
+    bulkDelete.mutate([...selected], {
+      onSuccess: () => clearSelection(),
+    })
   }
+
+  const handleExportCsv = useCallback(() => {
+    if (filteredRuns.length === 0) return
+    const headers = ["id", "rom", "algorithm", "status", "max_steps", "n_envs", "created_at", "started_at", "completed_at", "error"]
+    const rows = filteredRuns.map((r) =>
+      headers.map((h) => {
+        const val = r[h as keyof typeof r]
+        if (val == null) return ""
+        const str = String(val)
+        return str.includes(",") || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
+      }).join(",")
+    )
+    const csv = [headers.join(","), ...rows].join("\n")
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "runs.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [filteredRuns])
 
   return (
     <Page>
@@ -236,6 +262,7 @@ export function RunsPage() {
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
               onStopRun={(id) => stopRun.mutate(id)}
+              romsMap={romsMap}
             />
           </CardContent>
         </Card>
@@ -243,7 +270,8 @@ export function RunsPage() {
         {/* Footer */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{filteredRuns.length} runs</span>
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filteredRuns.length === 0}>
+            <Download className="size-3 mr-2" />
             Export CSV
           </Button>
         </div>

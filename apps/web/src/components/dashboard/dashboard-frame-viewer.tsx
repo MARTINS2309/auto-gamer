@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { useRunMetrics } from "@/hooks"
+import { initWebGL, destroyWebGL, type WebGLContext } from "@/lib/webgl"
 
 interface DashboardFrameViewerProps {
   runId: string
@@ -19,31 +20,38 @@ export function DashboardFrameViewer({
   algorithm,
   thumbnailUrl,
 }: DashboardFrameViewerProps) {
-  const { metrics, gridFrame, focusedFrame, setFrameFreq } = useRunMetrics(runId, true)
-  const imgRef = useRef<HTMLImageElement>(null)
-  const prevUrlRef = useRef<string | null>(null)
+  const { metrics, frame } = useRunMetrics(runId, true)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const ctxRef = useRef<WebGLContext | null>(null)
 
-  // Set a moderate frame frequency for the dashboard
+  // Init/destroy WebGL context
   useEffect(() => {
-    setFrameFreq(10)
-  }, [setFrameFreq])
-
-  // Update img src directly via ref (avoids setState-in-effect lint rule)
-  const frame = gridFrame ?? focusedFrame
-  const blob = frame?.blob ?? null
-  useEffect(() => {
-    if (!blob || !imgRef.current) return
-    if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current)
-    const url = URL.createObjectURL(blob)
-    prevUrlRef.current = url
-    imgRef.current.src = url
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = initWebGL(canvas)
+    ctxRef.current = ctx
     return () => {
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current)
-        prevUrlRef.current = null
-      }
+      if (ctx) destroyWebGL(ctx)
+      ctxRef.current = null
     }
-  }, [blob])
+  }, [])
+
+  // Render raw RGB frame
+  useEffect(() => {
+    const ctx = ctxRef.current
+    const canvas = canvasRef.current
+    if (!ctx || !canvas || !frame) return
+
+    const { gl } = ctx
+    if (canvas.width !== frame.width || canvas.height !== frame.height) {
+      canvas.width = frame.width
+      canvas.height = frame.height
+      gl.viewport(0, 0, frame.width, frame.height)
+    }
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, frame.width, frame.height, 0, gl.RGB, gl.UNSIGNED_BYTE, frame.pixels)
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  }, [frame])
 
   const hasFrame = frame !== null
   const bestReward = metrics?.best_reward ?? 0
@@ -55,10 +63,10 @@ export function DashboardFrameViewer({
         <AspectRatio ratio={4 / 3} className="relative">
           {/* Frame or waiting state */}
           {hasFrame ? (
-            <img
-              ref={imgRef}
-              alt={`${gameName} training`}
+            <canvas
+              ref={canvasRef}
               className="absolute inset-0 w-full h-full object-contain"
+              style={{ imageRendering: "pixelated" }}
             />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">

@@ -63,6 +63,7 @@ function PPOParams({
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="0.0000001"
                             step="0.00001"
                             value={hparams.learning_rate ?? 0.0003}
                             onChange={(e) => onChange("learning_rate", parseFloat(e.target.value))}
@@ -134,9 +135,11 @@ function PPOParams({
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="128"
                             value={hparams.n_steps ?? 2048}
                             onChange={(e) => onChange("n_steps", parseInt(e.target.value))}
+                            disabled={readOnly}
                         />
                     </div>
                     <div className="space-y-2">
@@ -145,9 +148,11 @@ function PPOParams({
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="32"
                             value={hparams.batch_size ?? 64}
                             onChange={(e) => onChange("batch_size", parseInt(e.target.value))}
+                            disabled={readOnly}
                         />
                     </div>
                     <HyperparamSlider
@@ -220,6 +225,7 @@ function A2CParams({
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="0.0000001"
                             step="0.00001"
                             value={hparams.learning_rate ?? 0.0007}
                             onChange={(e) => onChange("learning_rate", parseFloat(e.target.value))}
@@ -292,6 +298,7 @@ function A2CParams({
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="1"
                             value={hparams.n_steps ?? 5}
                             onChange={(e) => onChange("n_steps", parseInt(e.target.value))}
@@ -304,6 +311,7 @@ function A2CParams({
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="0.0000001"
                             step="0.000001"
                             value={hparams.rms_prop_eps ?? 1e-5}
                             onChange={(e) => onChange("rms_prop_eps", parseFloat(e.target.value))}
@@ -370,6 +378,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="0.0000001"
                             step="0.00001"
                             value={hparams.learning_rate ?? 0.0001}
                             onChange={(e) => onChange("learning_rate", parseFloat(e.target.value))}
@@ -401,6 +410,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="100000"
                             value={hparams.buffer_size ?? 1_000_000}
                             onChange={(e) => onChange("buffer_size", parseInt(e.target.value))}
@@ -413,6 +423,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="8"
                             value={hparams.batch_size ?? 32}
                             onChange={(e) => onChange("batch_size", parseInt(e.target.value))}
@@ -425,6 +436,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="0"
                             step="100"
                             value={hparams.learning_starts ?? 100}
                             onChange={(e) => onChange("learning_starts", parseInt(e.target.value))}
@@ -444,6 +456,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="1"
                             value={hparams.train_freq ?? 4}
                             onChange={(e) => onChange("train_freq", parseInt(e.target.value))}
@@ -456,6 +469,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="-1"
                             step="1"
                             value={hparams.gradient_steps ?? 1}
                             onChange={(e) => onChange("gradient_steps", parseInt(e.target.value))}
@@ -468,6 +482,7 @@ function DQNParams({ hparams, onChange, readOnly }: { hparams: AnyHyperparams; o
                         </LabelWithTooltip>
                         <Input
                             type="number"
+                            min="1"
                             step="1000"
                             value={hparams.target_update_interval ?? 10_000}
                             onChange={(e) => onChange("target_update_interval", parseInt(e.target.value))}

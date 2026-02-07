@@ -7,8 +7,10 @@ import {
   CarouselPrevious,
   CarouselNext,
 } from "@/components/ui/carousel"
+import { Button } from "@/components/ui/button"
 import { RomCard } from "@/components/roms/rom-card"
 import { Gamepad2 } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import type { RomListItem } from "@/lib/schemas"
 
 interface FeaturedRomCarouselProps {
@@ -36,10 +38,13 @@ export function FeaturedRomCarousel({
             Featured Games
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            No trainable games found. Import ROMs to get started.
+        <CardContent className="flex flex-col items-center gap-3 py-6">
+          <p className="text-muted-foreground text-center">
+            No trainable games found. Import ROMs and create connectors to start training.
           </p>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/roms">Browse ROM Library</Link>
+          </Button>
         </CardContent>
       </Card>
     )

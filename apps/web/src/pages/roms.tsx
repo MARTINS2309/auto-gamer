@@ -264,6 +264,8 @@ export function RomsPage() {
           roms={filters.filteredRoms}
           isLoading={isLoading}
           onSelectRom={handleSelectRom}
+          totalCount={roms.length}
+          onClearFilters={filters.clearFilters}
         />
 
         <RomDetailSheet

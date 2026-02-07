@@ -173,16 +173,12 @@ export interface UseRunMetricsResult {
   metrics: RunMetrics | null
   history: RunMetrics[]
   isConnected: boolean
-  /** Grid frame (env_index=0xFF) from training env */
-  gridFrame: FrameInfo | null
-  /** Focused single-env frame (env_index=0-254) */
-  focusedFrame: FrameInfo | null
-  /** Which env is focused (-1 = grid mode) */
-  focusedEnv: number
-  /** Set which env to focus (-1 = grid mode) */
-  setFocusedEnv: (envIndex: number) => void
-  /** Send a command to change frame capture frequency (steps between captures) */
-  setFrameFreq: (freq: number) => void
+  /** Latest frame from training env */
+  frame: FrameInfo | null
+  /** Number of completed episodes */
+  episodeCount: number
+  /** Whether historical metrics have finished loading */
+  metricsLoaded: boolean
 }
 
 export function useRunMetrics(
@@ -191,12 +187,16 @@ export function useRunMetrics(
 ): UseRunMetricsResult {
   const queryClient = useQueryClient()
   const wsRef = useRef<WebSocket | null>(null)
+  const retryRef = useRef(0)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [metrics, setMetrics] = useState<RunMetrics | null>(null)
   const [history, setHistory] = useState<RunMetrics[]>([])
   const [wsIsOpen, setWsIsOpen] = useState(false)
-  const [gridFrame, setGridFrame] = useState<FrameInfo | null>(null)
-  const [focusedFrame, setFocusedFrame] = useState<FrameInfo | null>(null)
-  const [focusedEnv, setFocusedEnvState] = useState(-1)
+  const [frame, setFrame] = useState<FrameInfo | null>(null)
+  const [episodeCount, setEpisodeCount] = useState(0)
+  const [metricsLoadedFor, setMetricsLoadedFor] = useState<string | null>(null)
+  // metricsLoaded is true once the initial fetch completes for the current runId
+  const metricsLoaded = metricsLoadedFor === runId
 
   // 1. Load historical metrics on mount
   useEffect(() => {
@@ -208,9 +208,14 @@ export function useRunMetrics(
         if (data.length > 0) {
           setMetrics(data[data.length - 1])
         }
+        // Restore episode count from persisted history
+        const episodes = data.filter((m) => m.type === "episode").length
+        if (episodes > 0) setEpisodeCount(episodes)
+        setMetricsLoadedFor(runId)
       })
       .catch((err) => {
         console.error("Failed to load metrics history:", err)
+        if (mounted) setMetricsLoadedFor(runId) // Mark loaded even on error to avoid infinite skeleton
       })
     return () => { mounted = false }
   }, [runId])
@@ -218,78 +223,81 @@ export function useRunMetrics(
   useEffect(() => {
     if (!isRunning) {
       wsRef.current?.close()
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
       return
     }
 
-    const callbacks: RunWebSocketCallbacks = {
-      onMetrics: (data) => {
-        const m: RunMetrics = {
-          step: data.step,
-          timestamp: data.timestamp ?? Date.now() / 1000,
-          reward: data.reward,
-          avg_reward: data.avg_reward,
-          best_reward: data.best_reward,
-          fps: data.fps,
-          loss: data.loss,
-          epsilon: data.epsilon,
-          details: data.details,
-          type: data.type ?? "metric",
-        }
-        setMetrics(m)
-        // Append to history, keeping it reasonable size?
-        // Actually, for charts we want full history, but in memory might get large.
-        // For now, let's keep it growing.
-        setHistory((prev) => [...prev, m])
-      },
-      onFrame: (frame) => {
-        if (frame.envIndex === 0xFF) {
-          setGridFrame(frame)
-        } else {
-          setFocusedFrame(frame)
-        }
-      },
-      onStatus: () => {
-        queryClient.invalidateQueries({ queryKey: runKeys.detail(runId) })
-      },
-      onError: (error) => {
-        toast.error(`Run error: ${error}`)
-      },
-      onConnectionError: () => {
-        // toast.error("WebSocket connection lost")
-      },
+    let disposed = false
+
+    function connect() {
+      if (disposed) return
+
+      const callbacks: RunWebSocketCallbacks = {
+        onMetrics: (data) => {
+          const m: RunMetrics = {
+            step: data.step,
+            timestamp: data.timestamp ?? Date.now() / 1000,
+            reward: data.reward,
+            avg_reward: data.avg_reward,
+            best_reward: data.best_reward,
+            fps: data.fps,
+            loss: data.loss,
+            epsilon: data.epsilon,
+            details: data.details,
+            type: data.type ?? "metric",
+          }
+          setMetrics(m)
+          setHistory((prev) => [...prev, m])
+
+          if (data.type === "episode") {
+            setEpisodeCount((prev) => prev + 1)
+          }
+        },
+        onFrame: (f) => {
+          setFrame(f)
+        },
+        onStatus: () => {
+          queryClient.invalidateQueries({ queryKey: runKeys.detail(runId) })
+        },
+        onError: (error) => {
+          toast.error(`Run error: ${error}`)
+        },
+        onConnectionError: () => {
+          toast.warning("Live connection lost — reconnecting...")
+        },
+      }
+
+      const ws = createRunWebSocket(runId, callbacks)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        setWsIsOpen(true)
+        retryRef.current = 0
+      }
+
+      ws.onclose = () => {
+        setWsIsOpen(false)
+        if (disposed) return
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+        const delay = Math.min(1000 * Math.pow(2, retryRef.current), 30000)
+        retryRef.current += 1
+        retryTimerRef.current = setTimeout(connect, delay)
+      }
     }
 
-    const ws = createRunWebSocket(runId, callbacks)
-    wsRef.current = ws
-
-    ws.onopen = () => setWsIsOpen(true)
-    ws.onclose = () => setWsIsOpen(false)
+    connect()
 
     return () => {
-      ws.close()
+      disposed = true
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
+      wsRef.current?.close()
     }
   }, [runId, isRunning, queryClient])
 
   // Derive isConnected: only connected when running AND websocket is open
   const isConnected = isRunning && wsIsOpen
 
-  const setFrameFreq = useCallback((freq: number) => {
-    const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: "set_frame_freq", value: freq }))
-    }
-  }, [])
-
-  const setFocusedEnv = useCallback((envIndex: number) => {
-    const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: "set_focused_env", value: envIndex }))
-    }
-    setFocusedEnvState(envIndex)
-    if (envIndex === -1) setFocusedFrame(null)
-  }, [])
-
-  return { metrics, history, isConnected, gridFrame, focusedFrame, focusedEnv, setFocusedEnv, setFrameFreq }
+  return { metrics, history, isConnected, frame, episodeCount, metricsLoaded }
 }
 
 // =============================================================================
@@ -479,8 +487,5 @@ export function useRunStats(runs: Run[]) {
     failedCount: failedRuns.length,
     activeRuns,
     uptime,
-    // Placeholder values - real metrics come from WebSocket/aggregated hook
-    totalSteps: 0,
-    bestReward: 0,
   }
 }

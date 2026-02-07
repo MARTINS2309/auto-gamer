@@ -7,11 +7,10 @@ export function useRunDetails(runId: string) {
     const {
         metrics: liveMetrics,
         history,
-        gridFrame,
-        focusedFrame,
-        focusedEnv,
-        setFocusedEnv,
-        setFrameFreq,
+        isConnected,
+        frame,
+        episodeCount,
+        metricsLoaded,
     } = useRunMetrics(runId, isRunning)
 
     const currentMetrics: RunMetrics = liveMetrics || {
@@ -31,10 +30,9 @@ export function useRunDetails(runId: string) {
         currentMetrics,
         history,
         isRunning,
-        gridFrame,
-        focusedFrame,
-        focusedEnv,
-        setFocusedEnv,
-        setFrameFreq,
+        isConnected,
+        frame,
+        episodeCount,
+        metricsLoaded,
     }
 }

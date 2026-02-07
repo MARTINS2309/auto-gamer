@@ -17,12 +17,13 @@ import {
   AlertCircle,
   CheckCircle,
 } from "lucide-react"
-import type { Run, ActivityEventType, ActivityEvent } from "@/lib/schemas"
+import type { Run, RomListItem, ActivityEventType, ActivityEvent } from "@/lib/schemas"
 import { useActivityFeed } from "@/hooks/use-activity"
-import { useStopRun, useResumeRun, useRoms } from "@/hooks"
+import { useStopRun, useResumeRun } from "@/hooks"
 
 interface ActivityFeedProps {
   runs: Run[]
+  roms?: RomListItem[]
   limit?: number
 }
 
@@ -65,11 +66,13 @@ const ALL_EVENT_TYPES: ActivityEventType[] = [
 function ActivityItem({
   event,
   runs,
+  roms,
   stopRun,
   resumeRun
 }: {
   event: ActivityEvent
   runs: Run[]
+  roms: RomListItem[]
   stopRun: ReturnType<typeof useStopRun>
   resumeRun: ReturnType<typeof useResumeRun>
 }) {
@@ -79,9 +82,7 @@ function ActivityItem({
   const run = runs.find((r) => r.id === event.runId)
   const runStatus = run?.status ?? null
 
-  // ROM data now includes all metadata directly
-  const { data: roms = [] } = useRoms()
-  const romId = run?.rom || event.runName // Fallback if run not found but we have name
+  const romId = run?.rom || event.runName
   const rom = roms.find(r => r.id === romId)
 
   const displayName = rom?.display_name ?? event.runName
@@ -141,7 +142,7 @@ function ActivityItem({
   )
 }
 
-export function ActivityFeed({ runs, limit = 50 }: ActivityFeedProps) {
+export function ActivityFeed({ runs, roms = [], limit = 50 }: ActivityFeedProps) {
   const { filteredEvents, activeFilter, setFilter } = useActivityFeed({
     runs,
     limit,
@@ -190,6 +191,7 @@ export function ActivityFeed({ runs, limit = 50 }: ActivityFeedProps) {
               key={event.id}
               event={event}
               runs={runs}
+              roms={roms}
               stopRun={stopRun}
               resumeRun={resumeRun}
             />

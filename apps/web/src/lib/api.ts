@@ -547,10 +547,9 @@ export const api = {
 // =============================================================================
 
 export interface FrameInfo {
-  blob: Blob
-  envIndex: number   // 0xFF = grid, 0-254 = specific env
-  nEnvs: number
-  timestamp: number
+  width: number
+  height: number
+  pixels: Uint8Array
 }
 
 export interface RunWebSocketCallbacks {
@@ -570,17 +569,18 @@ export function createRunWebSocket(
 
   ws.onmessage = (event) => {
     try {
-      // Binary message = frame (2-byte header + JPEG data)
+      // Binary message = raw RGB frame (4-byte header + pixel data)
       if (event.data instanceof ArrayBuffer) {
         const buf = event.data as ArrayBuffer
-        if (buf.byteLength < 3) return
-        const header = new Uint8Array(buf, 0, 2)
-        const blob = new Blob([new Uint8Array(buf, 2)], { type: "image/jpeg" })
+        if (buf.byteLength < 4) return
+        const view = new DataView(buf)
+        const w = view.getUint16(0, true)
+        const h = view.getUint16(2, true)
+        if (buf.byteLength < 4 + w * h * 3) return
         callbacks.onFrame?.({
-          blob,
-          envIndex: header[0],
-          nEnvs: header[1],
-          timestamp: Date.now() / 1000,
+          width: w,
+          height: h,
+          pixels: new Uint8Array(buf, 4, w * h * 3),
         })
         return
       }

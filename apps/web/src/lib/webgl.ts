@@ -70,26 +70,3 @@ export function destroyWebGL(ctx: WebGLContext): void {
   gl.deleteShader(vs)
   gl.deleteShader(fs)
 }
-
-/**
- * Render a JPEG/PNG Blob to a WebGL canvas via createImageBitmap.
- * Async because createImageBitmap decodes off the main thread.
- */
-export async function renderBlobFrame(
-  ctx: WebGLContext,
-  canvas: HTMLCanvasElement,
-  blob: Blob,
-): Promise<void> {
-  const bmp = await createImageBitmap(blob)
-  const { gl } = ctx
-
-  if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
-    canvas.width = bmp.width
-    canvas.height = bmp.height
-    gl.viewport(0, 0, bmp.width, bmp.height)
-  }
-
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bmp)
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-  bmp.close()
-}

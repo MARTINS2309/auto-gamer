@@ -687,13 +687,48 @@ def get_game_states(item_id: str):
 
 
 @router.post("/roms/{item_id}/sync")
-def sync_single_game(item_id: str, force: bool = False):
+async def sync_single_game(item_id: str, force: bool = False):
     """Sync metadata for a specific game."""
-    # For now, just trigger full sync - can optimize later
-    success = True  # TODO: implement single-item sync
-    if success:
-        return {"message": "Sync complete", "status": "synced"}
-    raise HTTPException(status_code=500, detail="Sync failed")
+    from ..services.rom_sync import clean_game_name_for_search
+
+    db = SessionLocal()
+    try:
+        # Find item (ROM or connector)
+        rom = db.query(RomModel).filter(RomModel.id == item_id).first()
+        connector = db.query(ConnectorModel).filter(ConnectorModel.id == item_id).first() if not rom else None
+
+        if not rom and not connector:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        item = rom or connector
+        item_type = "rom" if rom else "connector"
+
+        # Skip if already synced (unless force)
+        if not force and item.metadata_id:
+            return {"message": "Already synced", "status": "synced"}
+
+        # Determine search name
+        if item_type == "rom" and rom.connector_id:
+            search_name = clean_game_name_for_search(rom.connector_id)
+        elif item_type == "connector":
+            search_name = clean_game_name_for_search(connector.id)
+        else:
+            search_name = item.display_name
+
+        config = load_config()
+        if not config.igdb_client_id or not config.igdb_client_secret:
+            raise HTTPException(status_code=400, detail="IGDB credentials not configured")
+
+        success = await rom_sync._sync_metadata_for_item(
+            item_type, item_id, item.system, search_name,
+            config.igdb_client_id, config.igdb_client_secret,
+        )
+
+        if success:
+            return {"message": "Sync complete", "status": "synced"}
+        raise HTTPException(status_code=500, detail="Sync failed")
+    finally:
+        db.close()
 
 
 @router.post("/roms/{item_id}/resync")

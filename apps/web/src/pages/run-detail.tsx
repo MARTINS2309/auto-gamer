@@ -1,17 +1,28 @@
-import { useParams } from "@tanstack/react-router"
+import { useParams, Link } from "@tanstack/react-router"
 import { Page, PageContent, PageHeader, PageTitle } from "@/components/ui/page"
-import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { useRunDetails } from "@/hooks"
 import { RunDetailsHeader } from "@/components/runs/run-details-header"
 import { RunStatsGrid } from "@/components/runs/run-stats-grid"
 import { RunChartsSection } from "@/components/runs/run-charts-section"
 import { RunConfiguration } from "@/components/runs/run-configuration"
-import { TrainingFrameViewer } from "@/components/runs/training-frame-viewer"
+import { RunFrameViewer } from "@/components/runs/run-frame-viewer"
 
 export function RunDetailPage() {
   const { runId } = useParams({ from: "/runs/$runId" })
-  const { run, isLoading, currentMetrics, history, error, isRunning, gridFrame, focusedFrame, focusedEnv, setFocusedEnv, setFrameFreq } = useRunDetails(runId)
+  const {
+    run,
+    isLoading,
+    currentMetrics,
+    history,
+    error,
+    isRunning,
+    isConnected,
+    frame,
+    episodeCount,
+    metricsLoaded,
+  } = useRunDetails(runId)
 
   if (isLoading) {
     return (
@@ -27,13 +38,21 @@ export function RunDetailPage() {
   }
 
   if (error || !run) {
+    const is404 = error && "status" in error && (error as { status?: number }).status === 404
     return (
       <Page>
         <PageHeader>
-          <PageTitle>Not Found</PageTitle>
+          <PageTitle>{is404 ? "Run Not Found" : "Error"}</PageTitle>
         </PageHeader>
-        <PageContent>
-          <p className="text-destructive">Run not found</p>
+        <PageContent className="space-y-4">
+          <p className="text-destructive">
+            {is404
+              ? `No run found with ID "${runId}"`
+              : error?.message ?? "Failed to load run"}
+          </p>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/runs">Back to Runs</Link>
+          </Button>
         </PageContent>
       </Page>
     )
@@ -44,32 +63,17 @@ export function RunDetailPage() {
       <RunDetailsHeader run={run} />
 
       <PageContent className="space-y-6">
-        <RunStatsGrid run={run} metrics={currentMetrics} />
+        {isRunning && !isConnected && (
+          <div className="border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive flex items-center gap-2">
+            <span className="size-2 bg-destructive animate-pulse" />
+            Live connection lost — metrics may be stale
+          </div>
+        )}
+
+        <RunStatsGrid run={run} metrics={currentMetrics} episodeCount={isRunning ? episodeCount : undefined} isLoading={!metricsLoaded} />
 
         {isRunning && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Training Frame Viewer */}
-            <TrainingFrameViewer
-              gridFrame={gridFrame}
-              focusedFrame={focusedFrame}
-              focusedEnv={focusedEnv}
-              onFocusEnv={setFocusedEnv}
-              onFrameFreqChange={setFrameFreq}
-            />
-
-            {/* Progress */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Training Progress</span>
-                  <span className="text-xs text-muted-foreground">
-                    {Math.floor((currentMetrics.step / run.max_steps) * 100)}% ({currentMetrics.step.toLocaleString()} / {run.max_steps.toLocaleString()})
-                  </span>
-                </div>
-                <Progress value={(currentMetrics.step / run.max_steps) * 100} />
-              </div>
-            </div>
-          </div>
+          <RunFrameViewer frame={frame} />
         )}
 
         <RunChartsSection history={history} />

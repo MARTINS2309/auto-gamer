@@ -61,7 +61,7 @@ export interface paths {
         put?: never;
         /**
          * Resume Run
-         * @description Resume a paused run - not fully implemented in runner yet, essentially a restart or no-op.
+         * @description Resume a stopped/failed run from its latest checkpoint.
          */
         post: operations["resume_run_api_runs__run_id__resume_post"];
         delete?: never;
@@ -98,6 +98,10 @@ export interface paths {
          * Get Run Metrics
          * @description Get historical metrics for a run.
          *     Now fetches primarily from DB, falls back to file if empty (legacy support).
+         *
+         *     Args:
+         *         limit: Max metrics to return (default 2000, 0 = all)
+         *         offset: Skip first N metrics
          */
         get: operations["get_run_metrics_api_runs__run_id__metrics_get"];
         put?: never;
@@ -2599,7 +2603,10 @@ export interface operations {
     };
     get_run_metrics_api_runs__run_id__metrics_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path: {
                 run_id: string;

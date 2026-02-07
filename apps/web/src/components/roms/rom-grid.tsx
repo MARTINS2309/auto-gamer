@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
-import { Gamepad2 } from "lucide-react"
+import { Gamepad2, SearchX } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   Pagination,
   PaginationContent,
@@ -18,6 +19,9 @@ interface RomGridProps {
   roms: RomListItem[]
   isLoading: boolean
   onSelectRom: (id: string) => void
+  /** Total unfiltered count — used to distinguish "no ROMs" from "no matches" */
+  totalCount?: number
+  onClearFilters?: () => void
 }
 
 /** Generate page numbers to display with ellipsis */
@@ -50,7 +54,7 @@ function getPageNumbers(current: number, total: number): (number | "ellipsis")[]
   return pages
 }
 
-export function RomGrid({ roms, isLoading, onSelectRom }: RomGridProps) {
+export function RomGrid({ roms, isLoading, onSelectRom, totalCount, onClearFilters }: RomGridProps) {
   const [page, setPage] = useState(0)
   const gridRef = useRef<HTMLDivElement>(null)
   const [prevRomsLength, setPrevRomsLength] = useState(roms.length)
@@ -80,11 +84,27 @@ export function RomGrid({ roms, isLoading, onSelectRom }: RomGridProps) {
   }
 
   if (roms.length === 0) {
+    const isFiltered = totalCount != null && totalCount > 0
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <Gamepad2 className="size-12 mx-auto mb-4 opacity-50" />
-        <p className="text-lg">No ROMs found</p>
-        <p className="text-sm">Import ROMs using the path input above</p>
+      <div className="text-center py-12 text-muted-foreground space-y-3">
+        {isFiltered ? (
+          <>
+            <SearchX className="size-12 mx-auto mb-2 opacity-50" />
+            <p className="text-lg">No games match your filters</p>
+            <p className="text-sm">Try adjusting your search or filters</p>
+            {onClearFilters && (
+              <Button variant="outline" size="sm" onClick={onClearFilters}>
+                Clear all filters
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <Gamepad2 className="size-12 mx-auto mb-2 opacity-50" />
+            <p className="text-lg">No ROMs found</p>
+            <p className="text-sm">Import ROMs from the Settings page to get started</p>
+          </>
+        )}
       </div>
     )
   }
