@@ -26,13 +26,13 @@ The whole thing runs locally. One server, one port in production.
 
 ```mermaid
 graph LR
-    Browser["Browser\nReact + Vite"]
-    API["FastAPI\n:8000"]
-    Emulator["Emulator\nstable-retro"]
-    GPU["GPU\nROCm / CUDA"]
+    Browser["Browser<br/>React + Vite"]
+    API["FastAPI<br/>:8000"]
+    Emulator["Emulator<br/>stable-retro"]
+    GPU["GPU<br/>ROCm / CUDA"]
 
-    Browser -- "WebSocket\nframes + metrics" --> API
-    Browser -- "REST\nconfig, runs, ROMs" --> API
+    Browser -- "WebSocket<br/>frames + metrics" --> API
+    Browser -- "REST<br/>config, runs, ROMs" --> API
     API -- "stable-retro" --> Emulator
     API -- "SB3 training" --> GPU
 ```
@@ -65,15 +65,15 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph Frontend
-        Pages["Pages\nDashboard, Runs, ROMs, Agents"]
-        Hooks["Hooks\nuseRuns, useAgents, usePlay"]
+        Pages["Pages<br/>Dashboard, Runs, ROMs, Agents"]
+        Hooks["Hooks<br/>useRuns, useAgents, usePlay"]
         WS["WebSocket Client"]
     end
 
     subgraph Backend
-        Routers["Routers\nruns, roms, agents, config, play"]
-        Services["Services\nRunManager, PlayManager, RomScanner"]
-        Training["Training\nRunner, Wrappers, Callbacks"]
+        Routers["Routers<br/>runs, roms, agents, config, play"]
+        Services["Services<br/>RunManager, PlayManager, RomScanner"]
+        Training["Training<br/>Runner, Wrappers, Callbacks"]
     end
 
     subgraph External
