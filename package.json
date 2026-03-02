@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "./scripts/start.sh",
     "dev": "pnpm --filter web dev",
     "dev:api": "./scripts/start-api.sh",
     "dev:all": "concurrently \"pnpm dev\" \"pnpm dev:api\"",

@@ -152,8 +152,9 @@ async def startup_event():
     # Kill orphaned training processes from previous server session
     await asyncio.to_thread(run_manager.cleanup_orphans)
 
-    # Generate frontend types in background (non-blocking)
-    asyncio.create_task(generate_frontend_types())
+    # Generate frontend types only in dev mode (when --reload is active)
+    if os.environ.get("UVICORN_RELOAD"):
+        asyncio.create_task(generate_frontend_types())
 
 
 @app.on_event("shutdown")

@@ -29,4 +29,4 @@ fi
 
 source .venv/bin/activate
 
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+UVICORN_RELOAD=1 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
