@@ -2,12 +2,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Square, Copy, ExternalLink, Plus } from "lucide-react"
+import { Square, Copy, Plus } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { StatusBadge } from "@/components/shared"
 import { NewRunDialog } from "@/components/runs/new-run-dialog"
+import { formatSteps } from "@/lib/schemas"
 import type { Run, RomListItem } from "@/lib/schemas"
 
 interface RunsTableProps {
@@ -38,8 +39,10 @@ function RunRow({
   onStopRun: (id: string) => void
   rom: RomListItem | undefined
 }) {
-  const displayName = rom?.display_name ?? run.rom
-  const thumbnailUrl = rom?.thumbnail_url
+  const displayName = run.game_name ?? rom?.display_name ?? run.rom
+  const thumbnailUrl = run.game_thumbnail_url ?? rom?.thumbnail_url
+
+  const runLink = { to: "/runs/$runId" as const, params: { runId: run.id } }
 
   return (
     <TableRow>
@@ -50,55 +53,78 @@ function RunRow({
         />
       </TableCell>
       <TableCell>
-        <StatusBadge status={run.status} />
+        <Link {...runLink} className="block">
+          <StatusBadge status={run.status} />
+        </Link>
       </TableCell>
       <TableCell>
-        <button
-          onClick={() => copyId(run.id)}
-          className="font-mono text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-        >
-          {run.id.slice(0, 8)}...
-          <Copy className="size-3" />
-        </button>
+        <div className="flex items-center gap-1">
+          <Link {...runLink} className="font-mono text-xs text-muted-foreground hover:text-foreground">
+            {run.id.slice(0, 8)}...
+          </Link>
+          <button
+            onClick={(e) => { e.stopPropagation(); copyId(run.id) }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Copy className="size-3" />
+          </button>
+        </div>
+      </TableCell>
+      <TableCell>
+        {run.agent_id ? (
+          <Link to="/agents" className="block space-y-0.5 hover:text-foreground">
+            <span className="font-medium">{run.agent_name ?? "Unknown"}</span>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px] px-1 py-0">{run.algorithm}</Badge>
+            </div>
+          </Link>
+        ) : (
+          <span className="text-muted-foreground italic">No agent</span>
+        )}
       </TableCell>
       <TableCell className="font-medium">
-        <div className="flex items-center gap-2">
+        <Link to="/roms" className="flex items-center gap-2 hover:text-foreground">
           {thumbnailUrl && (
             <img
               src={thumbnailUrl}
               alt={displayName}
-              className="w-8 h-10 object-cover shadow-sm hidden sm:block"
+              className="w-8 h-10 object-cover shadow-sm"
             />
           )}
-          <span className="truncate max-w-[200px]" title={`${displayName} (${rom?.system ?? "Unknown"})`}>{displayName}</span>
-        </div>
+          <div className="truncate max-w-[180px]">
+            <span title={`${displayName} (${rom?.system ?? "Unknown"})`}>{displayName}</span>
+            <div className="text-xs text-muted-foreground">{run.state}</div>
+          </div>
+        </Link>
       </TableCell>
-      <TableCell className="text-muted-foreground">{run.state}</TableCell>
-      <TableCell>
-        <Badge variant="outline">{run.algorithm}</Badge>
+      <TableCell className="text-right tabular-nums text-sm">
+        <Link {...runLink} className="block hover:text-foreground">
+          {run.latest_step != null ? formatSteps(run.latest_step) : "--"}
+          <span className="text-muted-foreground text-xs"> / {formatSteps(run.max_steps)}</span>
+        </Link>
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-sm">
+        <Link {...runLink} className="block hover:text-foreground">
+          {run.best_reward != null ? run.best_reward.toFixed(1) : "--"}
+        </Link>
       </TableCell>
       <TableCell className="text-muted-foreground text-sm">
-        {run.started_at
-          ? formatDistanceToNow(new Date(run.started_at), { addSuffix: true })
-          : "--"}
+        <Link {...runLink} className="block hover:text-foreground">
+          {run.started_at
+            ? formatDistanceToNow(new Date(run.started_at), { addSuffix: true })
+            : "--"}
+        </Link>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-1">
-          <Link to="/runs/$runId" params={{ runId: run.id }}>
-            <Button variant="ghost" size="icon-xs">
-              <ExternalLink className="size-3" />
-            </Button>
-          </Link>
-          {run.status === "running" && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => onStopRun(run.id)}
-            >
-              <Square className="size-3" />
-            </Button>
-          )}
-        </div>
+        {run.status === "running" && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => onStopRun(run.id)}
+          >
+            <Square className="size-3" />
+          </Button>
+        )}
       </TableCell>
     </TableRow>
   )
@@ -149,9 +175,10 @@ export function RunsTable({
           </TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Run ID</TableHead>
+          <TableHead>Agent</TableHead>
           <TableHead>Game</TableHead>
-          <TableHead>State</TableHead>
-          <TableHead>Algorithm</TableHead>
+          <TableHead className="text-right">Steps</TableHead>
+          <TableHead className="text-right">Best Reward</TableHead>
           <TableHead>Started</TableHead>
           <TableHead></TableHead>
         </TableRow>

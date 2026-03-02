@@ -27,7 +27,7 @@ export function StatCard({ title, value, icon: Icon, color, subValue }: StatCard
 
 // Compact stat tile variant (used in run detail)
 interface StatTileProps {
-  label: string
+  label: React.ReactNode
   value: string | number
   subValue?: string
   icon: React.ElementType

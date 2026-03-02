@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useRuns, useRoms, useStopRun, useBulkDeleteRuns } from "@/hooks"
+import { useRuns, useRoms, useAgents, useStopRun, useBulkDeleteRuns } from "@/hooks"
 import { RunsTable, filterRuns } from "@/components/runs"
 import { NewRunDialog } from "@/components/runs/new-run-dialog"
 import type { Run } from "@/lib/schemas"
@@ -69,12 +69,13 @@ function useRunSelection(filteredRuns: Run[]) {
 export function RunsPage() {
   const { data: runs = [], isLoading } = useRuns()
   const { data: roms = [] } = useRoms()
+  const { data: agents = [] } = useAgents()
   const stopRun = useStopRun()
   const bulkDelete = useBulkDeleteRuns()
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [algorithmFilter, setAlgorithmFilter] = useState("all")
+  const [agentFilter, setAgentFilter] = useState("all")
   const [systemFilter, setSystemFilter] = useState("all")
 
   const romsSystemMap = useMemo(() => {
@@ -85,23 +86,25 @@ export function RunsPage() {
     return new Map(roms.map((rom) => [rom.id, rom]))
   }, [roms])
 
-  const algorithms = useMemo(() => {
-    const algos = new Set(runs.map((r) => r.algorithm).filter(Boolean))
-    return Array.from(algos).sort()
-  }, [runs])
-
   const systems = useMemo(() => {
     const sys = new Set(roms.map((r) => r.system).filter(Boolean))
     return Array.from(sys).sort()
   }, [roms])
 
+  // Agents that have runs (for filter dropdown)
+  const agentsWithRuns = useMemo(() => {
+    const runAgentIds = new Set(runs.map((r) => r.agent_id).filter(Boolean))
+    return agents.filter((a) => runAgentIds.has(a.id))
+  }, [runs, agents])
+
   const filteredRuns = filterRuns(
     runs,
     search,
     statusFilter,
-    algorithmFilter,
+    "all",
     romsSystemMap,
-    systemFilter
+    systemFilter,
+    agentFilter
   )
   const { selected, toggleSelect, toggleSelectAll, clearSelection } = useRunSelection(filteredRuns)
 
@@ -181,15 +184,15 @@ export function RunsPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={algorithmFilter} onValueChange={setAlgorithmFilter}>
-                  <SelectTrigger className="w-36">
-                    <SelectValue placeholder="Algorithm" />
+                <Select value={agentFilter} onValueChange={setAgentFilter}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Agent" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Algorithms</SelectItem>
-                    {algorithms.map((algo) => (
-                      <SelectItem key={algo} value={algo}>
-                        {algo}
+                    <SelectItem value="all">All Agents</SelectItem>
+                    {agentsWithRuns.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

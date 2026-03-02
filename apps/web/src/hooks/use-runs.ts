@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { api, createRunWebSocket, type RunWebSocketCallbacks, type FrameInfo } from "@/lib/api"
+import { api, createRunWebSocket, type RunWebSocketCallbacks, type FrameBuffer } from "@/lib/api"
 import type { Run, RunCreateInput, RunMetrics } from "@/lib/schemas"
 import { toast } from "sonner"
 import { formatDuration, intervalToDuration } from "date-fns"
@@ -14,7 +14,7 @@ export const runKeys = {
 export function useRuns(options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: runKeys.all,
-    queryFn: api.runs.list,
+    queryFn: () => api.runs.list(),
     refetchInterval: options?.refetchInterval ?? 5000,
   })
 }
@@ -173,12 +173,14 @@ export interface UseRunMetricsResult {
   metrics: RunMetrics | null
   history: RunMetrics[]
   isConnected: boolean
-  /** Latest frame from training env */
-  frame: FrameInfo | null
+  /** Mutable frame buffer ref — written by WS handler, read by rAF loops in canvas components. Access .current only in effects/rAF, never during render. */
+  frameBufferRef: React.RefObject<FrameBuffer>
   /** Number of completed episodes */
   episodeCount: number
   /** Whether historical metrics have finished loading */
   metricsLoaded: boolean
+  /** Current training phase: "rollout" | "training" | null (off-policy) */
+  phase: string | null
 }
 
 export function useRunMetrics(
@@ -192,9 +194,16 @@ export function useRunMetrics(
   const [metrics, setMetrics] = useState<RunMetrics | null>(null)
   const [history, setHistory] = useState<RunMetrics[]>([])
   const [wsIsOpen, setWsIsOpen] = useState(false)
-  const [frame, setFrame] = useState<FrameInfo | null>(null)
+  // Mutable frame buffer — bypasses React state entirely for zero-GC rendering
+  // Ring capacity: ~600 frames. At 15fps capture ≈ 40s buffer. Memory grows lazily (~100MB at SNES res).
+  const RING_CAPACITY = 600
+  const frameBufferRef = useRef<FrameBuffer>({
+    width: 0, height: 0, envCount: 0, envFrames: [], generation: 0,
+    ring: new Array(RING_CAPACITY), ringHead: 0, ringSize: 0, ringCapacity: RING_CAPACITY, ringGeneration: 0,
+  })
   const [episodeCount, setEpisodeCount] = useState(0)
   const [metricsLoadedFor, setMetricsLoadedFor] = useState<string | null>(null)
+  const [phase, setPhase] = useState<string | null>(null)
   // metricsLoaded is true once the initial fetch completes for the current runId
   const metricsLoaded = metricsLoadedFor === runId
 
@@ -204,7 +213,7 @@ export function useRunMetrics(
     api.runs.metrics(runId)
       .then((data) => {
         if (!mounted) return
-        setHistory(data)
+        setHistory(data.length > 2000 ? data.slice(-2000) : data)
         if (data.length > 0) {
           setMetrics(data[data.length - 1])
         }
@@ -233,6 +242,8 @@ export function useRunMetrics(
       if (disposed) return
 
       const callbacks: RunWebSocketCallbacks = {
+        // Mutable frame buffer — WS handler writes directly, no React state updates
+        frameBuffer: frameBufferRef.current,
         onMetrics: (data) => {
           const m: RunMetrics = {
             step: data.step,
@@ -241,20 +252,33 @@ export function useRunMetrics(
             avg_reward: data.avg_reward,
             best_reward: data.best_reward,
             fps: data.fps,
+            rollout_fps: data.rollout_fps,
+            phase: data.phase,
+            cumulative_rollout_time: data.cumulative_rollout_time,
+            cumulative_training_time: data.cumulative_training_time,
             loss: data.loss,
             epsilon: data.epsilon,
             details: data.details,
             type: data.type ?? "metric",
           }
           setMetrics(m)
-          setHistory((prev) => [...prev, m])
+          setHistory((prev) => {
+            const next = [...prev, m]
+            return next.length > 2000 ? next.slice(-2000) : next
+          })
+
+          // Update phase from metric data when present
+          if (m.phase) setPhase(m.phase)
 
           if (data.type === "episode") {
             setEpisodeCount((prev) => prev + 1)
           }
         },
-        onFrame: (f) => {
-          setFrame(f)
+        onPhase: (p) => {
+          // Normalize: "rollout_end"/"training_end" are transient, map to next phase
+          if (p === "training_end") setPhase("rollout")
+          else if (p === "rollout_end") setPhase("training")
+          else setPhase(p)
         },
         onStatus: () => {
           queryClient.invalidateQueries({ queryKey: runKeys.detail(runId) })
@@ -297,7 +321,7 @@ export function useRunMetrics(
   // Derive isConnected: only connected when running AND websocket is open
   const isConnected = isRunning && wsIsOpen
 
-  return { metrics, history, isConnected, frame, episodeCount, metricsLoaded }
+  return { metrics, history, isConnected, frameBufferRef, episodeCount, metricsLoaded, phase }
 }
 
 // =============================================================================
@@ -372,6 +396,10 @@ export function useAggregatedRunMetrics(
               avg_reward: data.avg_reward,
               best_reward: data.best_reward,
               fps: data.fps,
+              rollout_fps: data.rollout_fps,
+              phase: data.phase,
+              cumulative_rollout_time: data.cumulative_rollout_time,
+              cumulative_training_time: data.cumulative_training_time,
               loss: data.loss,
               epsilon: data.epsilon,
               type: data.type ?? "metric",

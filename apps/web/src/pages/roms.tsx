@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/input-group"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { useRoms, useRom, useRunsByRom, useCreateRun } from "@/hooks"
+import { useRoms, useRom, useRunsByRom } from "@/hooks"
 import { RomGrid, RomDetailSheet } from "@/components/roms"
+import { NewRunDialog } from "@/components/runs/new-run-dialog"
 import type { RomListItem } from "@/lib/schemas"
 
 function useRomFilters(roms: RomListItem[]) {
@@ -100,10 +101,10 @@ function useRomFilters(roms: RomListItem[]) {
 export function RomsPage() {
   const [showConnectors, setShowConnectors] = useState(false)
   const { data: roms = [], isLoading } = useRoms(showConnectors)
-  const createRun = useCreateRun()
 
   const [selectedRomId, setSelectedRomId] = useState<string | null>(null)
   const [userSelectedState, setUserSelectedState] = useState<string | null>(null)
+  const [newRunOpen, setNewRunOpen] = useState(false)
 
   const { data: romDetails, isLoading: isLoadingDetails } = useRom(selectedRomId)
   const recentRuns = useRunsByRom(selectedRomId, 5)
@@ -127,7 +128,7 @@ export function RomsPage() {
 
   const handleStartRun = () => {
     if (!selectedRomId || !selectedState) return
-    createRun.mutate({ rom: selectedRomId, state: selectedState })
+    setNewRunOpen(true)
   }
 
   return (
@@ -276,8 +277,14 @@ export function RomsPage() {
           selectedState={selectedState}
           onStateChange={setUserSelectedState}
           onStartRun={handleStartRun}
-          isStartingRun={createRun.isPending}
+          isStartingRun={false}
           recentRuns={recentRuns}
+        />
+
+        <NewRunDialog
+          open={newRunOpen}
+          onOpenChange={setNewRunOpen}
+          initialValues={selectedRomId && selectedState ? { rom: selectedRomId, state: selectedState } : undefined}
         />
       </PageContent>
     </Page>

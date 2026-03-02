@@ -7,7 +7,7 @@ import signal
 import threading
 from datetime import datetime
 
-from ..models.db import RunMetricModel, RunModel, RunStatus, SessionLocal
+from ..models.db import AgentModel, RunMetricModel, RunModel, RunStatus, SessionLocal
 from ..training.runner import find_latest_checkpoint, training_worker
 from .ws_manager import manager as ws_manager
 
@@ -128,10 +128,29 @@ class RunManager:
                     # Note: multiprocessing.Queue.get raises queue.Empty
                     msg = q.get(timeout=1.0)
 
-                    # Binary frame tuples: ("frame_bytes", header + jpeg_bytes)
+                    # Binary frame tuples: ("frame_bytes", header + rgb_bytes)
+                    # Drain queue to skip stale frames — only send the latest
                     if isinstance(msg, tuple) and msg[0] == "frame_bytes":
-                        self._emit_binary(run_id, msg[1])
-                        continue
+                        latest_frame = msg[1]
+                        skipped = 0
+                        while True:
+                            try:
+                                peek = q.get_nowait()
+                                if isinstance(peek, tuple) and peek[0] == "frame_bytes":
+                                    latest_frame = peek[1]
+                                    skipped += 1
+                                else:
+                                    # Not a frame — put it back and stop draining
+                                    # We can't put back into a mp.Queue, so process it below
+                                    msg = peek
+                                    break
+                            except queue.Empty:
+                                msg = None
+                                break
+                        self._emit_binary(run_id, latest_frame)
+                        if msg is None:
+                            continue
+                        # Fall through to process the non-frame msg we pulled out
 
                     msg_type = msg.get("type")
                     print(f"[Monitor] Received message type={msg_type} for run {run_id}")
@@ -236,6 +255,10 @@ class RunManager:
                                 db_run.error = msg["error"]
                             db.commit()
 
+                            # Update agent stats on terminal status
+                            if status in ["completed", "stopped"] and db_run.agent_id:
+                                self._update_agent_stats(db, db_run.agent_id, best_reward)
+
                         self._emit_event(run_id, msg)
 
                         if status in ["completed", "failed", "stopped"]:
@@ -254,8 +277,33 @@ class RunManager:
                         except Exception:
                             pass
 
+                    elif msg_type == "phase":
+                        # Forward phase transitions to WebSocket clients
+                        self._emit_event(run_id, msg)
+
+                    elif msg_type == "recording_index":
+                        # Persist episode-to-BK2 mapping
+                        index_file = os.path.join(run_dir, "recordings", "episode_index.json")
+                        try:
+                            os.makedirs(os.path.dirname(index_file), exist_ok=True)
+                            episodes = msg.get("episodes", [])
+                            is_complete = msg.get("complete", False)
+
+                            if is_complete:
+                                with open(index_file, "w") as f:
+                                    json.dump({"episodes": episodes, "complete": True}, f)
+                            else:
+                                existing: dict = {"episodes": []}
+                                if os.path.exists(index_file):
+                                    with open(index_file) as f:
+                                        existing = json.load(f)
+                                existing["episodes"].extend(episodes)
+                                with open(index_file, "w") as f:
+                                    json.dump(existing, f)
+                        except Exception as e:
+                            print(f"[Monitor] Failed to save recording index: {e}")
+
                     elif msg_type == "error":
-                        # Status update handles error field, but maybe emit specific error event?
                         self._emit_event(run_id, msg)
 
                 except queue.Empty:
@@ -341,6 +389,50 @@ class RunManager:
             print(
                 f"[Monitor] Cannot emit event: loop={self.loop is not None}, ws_manager={ws_manager is not None}"
             )
+
+    def _update_agent_stats(self, db, agent_id: str, run_best_reward: float):
+        """Update an agent's aggregate stats after a run completes."""
+        try:
+            agent = db.query(AgentModel).filter(AgentModel.id == agent_id).first()
+            if not agent:
+                return
+
+            # Recount from DB for accuracy
+            agent.total_runs = (
+                db.query(RunModel)
+                .filter(
+                    RunModel.agent_id == agent_id,
+                    RunModel.status.in_(["completed", "stopped"]),
+                )
+                .count()
+            )
+
+            # Sum the max step per run for cumulative total
+            from sqlalchemy import func
+            subq = (
+                db.query(
+                    RunMetricModel.run_id,
+                    func.max(RunMetricModel.step).label("max_step"),
+                )
+                .join(RunModel, RunMetricModel.run_id == RunModel.id)
+                .filter(
+                    RunModel.agent_id == agent_id,
+                    RunModel.status.in_(["completed", "stopped"]),
+                )
+                .group_by(RunMetricModel.run_id)
+                .subquery()
+            )
+            cumulative_steps = db.query(func.sum(subq.c.max_step)).scalar()
+            agent.total_steps = cumulative_steps or 0
+
+            # Update best reward
+            if run_best_reward > (agent.best_reward or float("-inf")):
+                agent.best_reward = run_best_reward
+
+            db.commit()
+        except Exception as e:
+            print(f"[RunManager] Failed to update agent stats for {agent_id}: {e}")
+            db.rollback()
 
     def _emit_binary(self, run_id: str, data: bytes):
         if self.loop and ws_manager:

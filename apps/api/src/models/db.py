@@ -239,6 +239,38 @@ class GameMetadataModel(Base):
 
 
 # =============================================================================
+# Agent Model
+# =============================================================================
+
+
+class AgentModel(Base):
+    """Persistent named agent that accumulates learning across multiple training runs."""
+
+    __tablename__ = "agents"
+
+    id = Column(String, primary_key=True, index=True)  # UUID
+    name = Column(String, nullable=False, unique=True)
+    description = Column(String, nullable=True)
+    algorithm = Column(String, nullable=False)  # Immutable after creation
+    game_id = Column(String, nullable=False)  # ROM id this agent is trained on
+    hyperparams = Column(JSON, nullable=True)  # Default hyperparams for new runs
+    observation_type = Column(String, default="image")  # Immutable
+    action_space = Column(String, default="filtered")  # Immutable
+
+    # Aggregate stats (denormalized for quick display)
+    total_steps = Column(Integer, default=0)
+    total_runs = Column(Integer, default=0)
+    best_reward = Column(Float, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+
+    runs = relationship("RunModel", back_populates="agent", foreign_keys="[RunModel.agent_id]")
+
+
+# =============================================================================
 # Run Model
 # =============================================================================
 
@@ -254,10 +286,14 @@ class RunModel(Base):
     n_envs = Column(Integer)
     max_steps = Column(Integer)
     checkpoint_interval = Column(Integer)
-    frame_capture_interval = Column(Integer)
+    frame_fps = Column(Integer)
     reward_shaping = Column(String)
     observation_type = Column(String)
     action_space = Column(String)
+
+    # Agent relationships
+    agent_id = Column(String, ForeignKey("agents.id"), nullable=True, index=True)
+    opponent_agent_id = Column(String, ForeignKey("agents.id"), nullable=True, index=True)
 
     status = Column(String, default=RunStatus.PENDING.value)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -267,6 +303,8 @@ class RunModel(Base):
     error = Column(String, nullable=True)
 
     metrics = relationship("RunMetricModel", back_populates="run", cascade="all, delete-orphan")
+    agent = relationship("AgentModel", back_populates="runs", foreign_keys=[agent_id])
+    opponent_agent = relationship("AgentModel", foreign_keys=[opponent_agent_id])
 
 
 class RunMetricModel(Base):

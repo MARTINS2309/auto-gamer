@@ -661,6 +661,14 @@ def get_game(item_id: str):
         db.close()
 
 
+def _normalize_states(states: list) -> list[dict]:
+    """Normalize states to dict format. Handles old flat-string entries."""
+    return [
+        s if isinstance(s, dict) else {"name": s, "multiplayer": False}
+        for s in (states or [])
+    ]
+
+
 @router.get("/roms/{item_id}/states")
 def get_game_states(item_id: str):
     """Get available save states for a game."""
@@ -669,7 +677,7 @@ def get_game_states(item_id: str):
         # Try to find as ROM with connector
         rom = db.query(RomModel).filter(RomModel.id == item_id).first()
         if rom and rom.connector:
-            return rom.connector.states or []
+            return _normalize_states(rom.connector.states)
 
         # Try to find as connector
         connector = db.query(ConnectorModel).filter(ConnectorModel.id == item_id).first()
@@ -679,7 +687,7 @@ def get_game_states(item_id: str):
             if details:
                 connector.states = details.get("states", [])
                 db.commit()
-            return connector.states or []
+            return _normalize_states(connector.states)
 
         raise HTTPException(status_code=404, detail="Game not found")
     finally:
@@ -776,7 +784,7 @@ def _rom_to_list_item(rom: RomModel, metadata: GameMetadataModel | None) -> Game
         has_connector=has_connector,
         status=derive_game_status(True, has_connector),
         connector_id=rom.connector_id,
-        states=connector.states if connector else [],
+        states=[s["name"] if isinstance(s, dict) else s for s in (connector.states or [])] if connector else [],
         sync_status=metadata.sync_status if metadata else "pending",
         rating=metadata.rating if metadata else None,
         genres=metadata.genres or [] if metadata else [],
@@ -798,7 +806,7 @@ def _connector_to_list_item(connector: ConnectorModel) -> GameListItem:
         has_connector=True,
         status=GameStatus.CONNECTOR_ONLY,
         connector_id=connector.id,
-        states=connector.states or [],
+        states=[s["name"] if isinstance(s, dict) else s for s in (connector.states or [])],
         sync_status=metadata.sync_status if metadata else "pending",
         rating=metadata.rating if metadata else None,
         genres=metadata.genres or [] if metadata else [],
@@ -821,7 +829,7 @@ def _rom_to_full_response(rom: RomModel, metadata: GameMetadataModel | None) -> 
         has_connector=has_connector,
         status=derive_game_status(True, has_connector),
         connector_id=rom.connector_id,
-        states=connector.states if connector else [],
+        states=[s["name"] if isinstance(s, dict) else s for s in (connector.states or [])] if connector else [],
         sync_status=metadata.sync_status if metadata else "pending",
         sync_error=metadata.sync_error if metadata else None,
         synced_at=metadata.updated_at if metadata else None,
@@ -858,7 +866,7 @@ def _connector_to_full_response(connector: ConnectorModel) -> GameResponse:
         has_connector=True,
         status=GameStatus.CONNECTOR_ONLY,
         connector_id=connector.id,
-        states=connector.states or [],
+        states=[s["name"] if isinstance(s, dict) else s for s in (connector.states or [])],
         sync_status=metadata.sync_status if metadata else "pending",
         sync_error=metadata.sync_error if metadata else None,
         synced_at=metadata.updated_at if metadata else None,

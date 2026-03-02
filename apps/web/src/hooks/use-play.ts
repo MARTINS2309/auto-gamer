@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import type { KeyboardMapping } from "@/lib/schemas"
@@ -14,7 +13,6 @@ const WS_BASE = API_BASE.replace(/^http/, "ws")
  */
 export function useStartPlaySession(keyboardMapping?: KeyboardMapping | null) {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
 
   // Auto-forward keyboard + gamepad when a session is active
@@ -31,13 +29,13 @@ export function useStartPlaySession(keyboardMapping?: KeyboardMapping | null) {
       toast.success(data.message)
       queryClient.invalidateQueries({ queryKey: ["play-sessions"] })
     },
-    onError: (error, variables) => {
+    onError: (error) => {
       console.error("[Play] Failed to start session:", error)
       if (error instanceof ApiError && error.code === "NEEDS_CONNECTOR") {
         toast.error("This game needs a connector before it can be played.", {
           action: {
-            label: "Create Connector",
-            onClick: () => navigate({ to: "/connector-builder", search: { rom: variables.romId } }),
+            label: "Open Integration Tool",
+            onClick: () => { api.integration.launch().catch(() => {}) },
           },
         })
       } else {

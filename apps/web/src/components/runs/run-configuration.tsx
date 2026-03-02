@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import type { Run, RunHyperparams } from "@/lib/schemas"
-import { DEFAULT_HYPERPARAMS } from "@/lib/schemas"
+import { DEFAULT_HYPERPARAMS, formatSteps } from "@/lib/schemas"
 import { useUpdateRun } from "@/hooks/use-runs"
 import { HyperparametersCard } from "@/components/config/hyperparameters-card"
 
@@ -33,11 +33,17 @@ function GeneralConfig({ run }: { run: Run }) {
             </div>
             <Card className="lg:col-span-2">
                 <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4">
+                    {run.agent_name && <LabelValue label="Agent" value={run.agent_name} />}
+                    {run.opponent_agent_name && <LabelValue label="Opponent Agent" value={run.opponent_agent_name} />}
                     <LabelValue label="Algorithm" value={run.algorithm} />
+                    <LabelValue label="Observation Type" value={run.observation_type} />
+                    <LabelValue label="Action Space" value={run.action_space} />
                     <LabelValue label="ROM" value={run.rom} />
                     <LabelValue label="Initial State" value={run.state} />
                     <LabelValue label="Max Steps" value={run.max_steps.toLocaleString()} />
                     <LabelValue label="Parallel Envs" value={run.n_envs} />
+                    <LabelValue label="Checkpoint Interval" value={formatSteps(run.checkpoint_interval)} />
+                    <LabelValue label="Frame FPS" value={`${run.frame_fps} fps`} />
                     <LabelValue label="Created At" value={new Date(run.created_at).toLocaleString()} />
                 </CardContent>
             </Card>

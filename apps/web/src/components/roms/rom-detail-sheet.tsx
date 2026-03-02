@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Play, Settings2, Gamepad2, RefreshCw, AlertCircle, Wrench } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { StatusBadge } from "@/components/shared"
-import { useStartPlaySession, useStopPlaySession, useConfig, useSyncRom } from "@/hooks"
+import { useStartPlaySession, useStopPlaySession, useConfig, useSyncRom, useIntegrationTool } from "@/hooks"
 import { PlayFrameViewer } from "./play-frame-viewer"
 import type { KeyboardMapping } from "@/lib/schemas"
 import {
@@ -90,6 +90,9 @@ export function RomDetailSheet({
 
   // Sync single ROM
   const { mutate: syncRom, isPending: isSyncing } = useSyncRom()
+
+  // Integration tool
+  const { launch: launchIntegration, isLaunching: isLaunchingIntegration } = useIntegrationTool()
 
   const handlePlayClick = () => {
     setShowKeybindsDialog(true)
@@ -311,12 +314,19 @@ export function RomDetailSheet({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold">Start Training</h4>
-                <Link to="/connector-builder" search={{ rom: rom?.id }}>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                    <Wrench className="size-3" />
-                    Build Connector
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => launchIntegration(rom?.has_connector && rom?.connector_id
+                    ? { connectorId: rom.connector_id }
+                    : { romId: rom?.id }
+                  )}
+                  disabled={isLaunchingIntegration}
+                >
+                  <Wrench className="size-3" />
+                  {isLaunchingIntegration ? "Launching..." : rom?.has_connector ? "Edit Connector" : "Build Connector"}
+                </Button>
               </div>
 
               {/* State Selection */}
@@ -327,10 +337,15 @@ export function RomDetailSheet({
                 ) : states.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No save states available.
-                    <Link to="/connector-builder" search={{ rom: rom?.id }} className="text-primary hover:underline ml-1">
-                      Create a connector
-                    </Link>
-                    {" "}to enable training.
+                    <button
+                      type="button"
+                      onClick={() => launchIntegration({ romId: rom?.id })}
+                      className="text-primary hover:underline ml-1"
+                      disabled={isLaunchingIntegration}
+                    >
+                      Open integration tool
+                    </button>
+                    {" "}to create a connector.
                   </p>
                 ) : (
                   <Select value={selectedState} onValueChange={onStateChange}>
@@ -354,12 +369,11 @@ export function RomDetailSheet({
                   <Button
                     variant="outline"
                     size="lg"
-                    asChild
+                    onClick={() => launchIntegration({ romId: rom?.id })}
+                    disabled={isLaunchingIntegration}
                   >
-                    <Link to="/connector-builder" search={{ rom: rom.id }}>
-                      <Wrench className="size-4 mr-2" />
-                      Create Connector
-                    </Link>
+                    <Wrench className="size-4 mr-2" />
+                    {isLaunchingIntegration ? "Launching..." : "Create Connector"}
                   </Button>
                 ) : (
                   <Button

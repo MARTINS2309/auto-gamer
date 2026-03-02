@@ -21,7 +21,10 @@
     "typecheck:web": "pnpm --filter web typecheck",
     "typecheck:api": "cd apps/api && .venv/bin/mypy src",
     "format": "pnpm format:web && pnpm format:api",
-    "format:api": "cd apps/api && .venv/bin/ruff format ."
+    "format:api": "cd apps/api && .venv/bin/ruff format .",
+    "knip": "pnpm knip:web && pnpm knip:api",
+    "knip:web": "pnpm --filter web knip",
+    "knip:api": "cd apps/api && .venv/bin/vulture src/ vulture_whitelist.py --min-confidence 80"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

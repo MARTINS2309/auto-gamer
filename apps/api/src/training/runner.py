@@ -4,7 +4,7 @@ import sys
 import traceback
 
 import torch
-from stable_baselines3 import A2C, DQN, PPO
+from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import CSVOutputFormat, HumanOutputFormat, Logger
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -81,6 +81,10 @@ def training_worker(
         if record_dir:
             os.makedirs(record_dir, exist_ok=True)
 
+        # Self-play config (optional)
+        opponent_model_path = config.get("opponent_model_path")
+        opponent_algorithm = config.get("opponent_algorithm")
+
         # Create env functions - first env gets recording enabled
         def make_env_with_record():
             return make_retro_env(
@@ -89,6 +93,8 @@ def training_worker(
                 observation_type=config.get("observation_type", "image"),
                 action_space=config.get("action_space", "filtered"),
                 record_dir=record_dir,
+                opponent_model_path=opponent_model_path,
+                opponent_algorithm=opponent_algorithm,
             )
 
         def make_env_no_record():
@@ -98,6 +104,8 @@ def training_worker(
                 observation_type=config.get("observation_type", "image"),
                 action_space=config.get("action_space", "filtered"),
                 record_dir=None,
+                opponent_model_path=opponent_model_path,
+                opponent_algorithm=opponent_algorithm,
             )
 
         # Create VecEnv
@@ -122,40 +130,67 @@ def training_worker(
             env = DummyVecEnv([make_env_with_record])
 
         # Select Algorithm
-        ALGO_MAP: dict[str, type[PPO] | type[A2C] | type[DQN]] = {"PPO": PPO, "A2C": A2C, "DQN": DQN}
+        ALGO_MAP = {"PPO": PPO, "A2C": A2C, "DQN": DQN, "SAC": SAC, "TD3": TD3, "DDPG": DDPG}
         AlgoClass = ALGO_MAP.get(algo_name, PPO)
 
         # Init Model
-        # Map hyperparams to kwargs.
-        # Note: hyperparams dict structure must match SB3 expected args.
+        # Map hyperparams to kwargs — all known SB3 params are listed here.
+        # inspect.signature filtering below keeps only those accepted by the chosen algo.
         all_kwargs = {
             "verbose": 1,
             "tensorboard_log": f"./data/runs/{run_id}/logs",
+            # Shared
             "learning_rate": hyperparams.get("learning_rate", 3e-4),
-            "n_steps": hyperparams.get("n_steps", 2048),
-            "batch_size": hyperparams.get("batch_size", 64),
-            "n_epochs": hyperparams.get("n_epochs", 10),
             "gamma": hyperparams.get("gamma", 0.99),
+            "max_grad_norm": hyperparams.get("max_grad_norm", 0.5),
+            # On-policy (PPO, A2C)
+            "n_steps": hyperparams.get("n_steps", 2048),
             "gae_lambda": hyperparams.get("gae_lambda", 0.95),
-            "clip_range": hyperparams.get("clip_range", 0.2),
             "ent_coef": hyperparams.get("ent_coef", 0.0),
             "vf_coef": hyperparams.get("vf_coef", 0.5),
-            "max_grad_norm": hyperparams.get("max_grad_norm", 0.5),
-            "buffer_size": hyperparams.get("buffer_size", 1_000_000),  # DQN specific
-            "learning_starts": hyperparams.get("learning_starts", 50000),  # DQN specific
-            "train_freq": hyperparams.get("train_freq", 4),  # DQN specific
-            "gradient_steps": hyperparams.get("gradient_steps", 1),  # DQN specific
-            "target_update_interval": hyperparams.get(
-                "target_update_interval", 10000
-            ),  # DQN specific
-            "exploration_fraction": hyperparams.get("exploration_fraction", 0.1),  # DQN specific
-            "exploration_initial_eps": hyperparams.get(
-                "exploration_initial_eps", 1.0
-            ),  # DQN specific
-            "exploration_final_eps": hyperparams.get("exploration_final_eps", 0.05),  # DQN specific
+            "normalize_advantage": hyperparams.get("normalize_advantage", True),
+            "use_sde": hyperparams.get("use_sde", False),
+            "sde_sample_freq": hyperparams.get("sde_sample_freq", -1),
+            # PPO specific
+            "batch_size": hyperparams.get("batch_size", 64),
+            "n_epochs": hyperparams.get("n_epochs", 10),
+            "clip_range": hyperparams.get("clip_range", 0.2),
+            # A2C specific
+            "use_rms_prop": hyperparams.get("use_rms_prop", True),
+            "rms_prop_eps": hyperparams.get("rms_prop_eps", 1e-5),
+            # Off-policy shared (DQN, SAC, TD3, DDPG)
+            "buffer_size": hyperparams.get("buffer_size", 1_000_000),
+            "learning_starts": hyperparams.get("learning_starts", 100),
+            "train_freq": hyperparams.get("train_freq", 4),
+            "gradient_steps": hyperparams.get("gradient_steps", 1),
+            "tau": hyperparams.get("tau", 1.0),
+            "target_update_interval": hyperparams.get("target_update_interval", 10000),
+            # DQN specific
+            "exploration_fraction": hyperparams.get("exploration_fraction", 0.1),
+            "exploration_initial_eps": hyperparams.get("exploration_initial_eps", 1.0),
+            "exploration_final_eps": hyperparams.get("exploration_final_eps", 0.05),
+            # SAC specific
+            "target_entropy": hyperparams.get("target_entropy", "auto"),
+            "use_sde_at_warmup": hyperparams.get("use_sde_at_warmup", False),
+            # TD3 specific
+            "policy_delay": hyperparams.get("policy_delay", 2),
+            "target_policy_noise": hyperparams.get("target_policy_noise", 0.2),
+            "target_noise_clip": hyperparams.get("target_noise_clip", 0.5),
         }
 
-        # Filter kwargs based on AlgoClass
+        # Handle SAC's auto-tuning parameters (ent_coef_auto / target_entropy_auto
+        # are UI-only fields — translate to SB3's "auto" string convention)
+        if algo_name == "SAC":
+            if hyperparams.get("ent_coef_auto", True):
+                all_kwargs["ent_coef"] = "auto"
+            else:
+                all_kwargs["ent_coef"] = hyperparams.get("ent_coef", 0.1)
+            if hyperparams.get("target_entropy_auto", True):
+                all_kwargs["target_entropy"] = "auto"
+            else:
+                all_kwargs["target_entropy"] = hyperparams.get("target_entropy", -1.0)
+
+        # Filter kwargs based on AlgoClass __init__ signature
         import inspect
 
         sig = inspect.signature(AlgoClass)
@@ -201,7 +236,7 @@ def training_worker(
         resumed_steps = 0
         if resume_path:
             print(f"[{run_id}] Resuming from checkpoint: {resume_path}")
-            model = AlgoClass.load(resume_path, env=env, device=device)
+            model = AlgoClass.load(resume_path, env=env, device=device)  # type: ignore[attr-defined]
             resumed_steps = config.get("resumed_steps", 0)
             print(f"[{run_id}] Loaded checkpoint at step {resumed_steps}")
         else:
@@ -211,7 +246,7 @@ def training_worker(
 
         # Callbacks
         metric_freq = max(1, config.get("metric_interval", 100) // n_envs)
-        frame_freq = max(1, config.get("frame_capture_interval", 60) // n_envs)
+        frame_fps = config.get("frame_fps", 15)
 
         checkpoint_dir = f"./data/runs/{run_id}/checkpoints"
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -220,7 +255,9 @@ def training_worker(
         broadcast_cb = BroadcastingCallback(
             queue,
             check_freq=metric_freq,
-            frame_freq=frame_freq,
+            frame_fps=frame_fps,
+            algo_name=algo_name,
+            n_envs=n_envs,
         )
         checkpoint_cb = CheckpointCallback(
             save_freq=checkpoint_freq,

@@ -29,8 +29,8 @@ export function RunDetailsHeader({ run }: RunDetailsHeaderProps) {
     const { data: roms = [] } = useRoms()
     const rom = roms.find(r => r.id === run.rom)
 
-    const displayName = rom?.display_name ?? run.rom
-    const thumbnailUrl = rom?.thumbnail_url
+    const displayName = run.game_name ?? rom?.display_name ?? run.rom
+    const thumbnailUrl = run.game_thumbnail_url ?? rom?.thumbnail_url
     const genres = rom?.genres ?? []
 
     const isRunning = run.status === "running"
@@ -67,6 +67,9 @@ export function RunDetailsHeader({ run }: RunDetailsHeaderProps) {
                                 <div className="flex items-center gap-3">
                                     <PageTitle>{displayName}</PageTitle>
                                     <StatusBadge status={run.status} />
+                                    {run.agent_name && (
+                                        <Badge variant="secondary">{run.agent_name}</Badge>
+                                    )}
                                     <Badge variant="outline">{run.algorithm}</Badge>
                                 </div>
                                 <PageDescription className="flex items-center gap-4 mt-1">

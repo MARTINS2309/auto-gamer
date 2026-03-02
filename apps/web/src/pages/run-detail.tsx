@@ -8,6 +8,7 @@ import { RunStatsGrid } from "@/components/runs/run-stats-grid"
 import { RunChartsSection } from "@/components/runs/run-charts-section"
 import { RunConfiguration } from "@/components/runs/run-configuration"
 import { RunFrameViewer } from "@/components/runs/run-frame-viewer"
+import { RunRecordingsSection } from "@/components/runs/run-recordings-section"
 
 export function RunDetailPage() {
   const { runId } = useParams({ from: "/runs/$runId" })
@@ -19,9 +20,10 @@ export function RunDetailPage() {
     error,
     isRunning,
     isConnected,
-    frame,
+    frameBufferRef,
     episodeCount,
     metricsLoaded,
+    phase,
   } = useRunDetails(runId)
 
   if (isLoading) {
@@ -70,13 +72,17 @@ export function RunDetailPage() {
           </div>
         )}
 
-        <RunStatsGrid run={run} metrics={currentMetrics} episodeCount={isRunning ? episodeCount : undefined} isLoading={!metricsLoaded} />
+        <RunStatsGrid run={run} metrics={currentMetrics} episodeCount={isRunning ? episodeCount : undefined} isLoading={!metricsLoaded} phase={phase} history={isRunning ? history : undefined} />
 
         {isRunning && (
-          <RunFrameViewer frame={frame} />
+          <RunFrameViewer frameBufferRef={frameBufferRef} phase={phase} metrics={currentMetrics} captureFps={run.frame_fps} />
         )}
 
-        <RunChartsSection history={history} />
+        <RunChartsSection history={history} runId={runId} rom={run.rom} />
+
+        {!isRunning && (
+          <RunRecordingsSection runId={runId} />
+        )}
 
         <RunConfiguration run={run} />
 

@@ -13,6 +13,11 @@ import {
   RunListSchema,
   RunCreateSchema,
   RunMetricsSchema,
+  RecordingSchema,
+  AgentSchema,
+  AgentListSchema,
+  AgentCreateSchema,
+  GameStateSchema,
   ConfigSchema,
   EmulatorListSchema,
   PlaySessionResponseSchema,
@@ -26,6 +31,10 @@ import {
   type RunCreateInput,
   type RunMetrics,
   type RunStatus,
+  type Recording,
+  type Agent,
+  type AgentCreateInput,
+  type AgentUpdate,
   type Config,
   type ConfigUpdate,
   type RomImportResponse,
@@ -196,8 +205,8 @@ export const api = {
 
     get: (id: string): Promise<Rom> => request(`/api/roms/${id}`, RomSchema),
 
-    getStates: (id: string): Promise<string[]> =>
-      request(`/api/roms/${id}/states`, z.array(z.string())),
+    getStates: (id: string) =>
+      request(`/api/roms/${id}/states`, z.array(GameStateSchema)),
 
     import: (path?: string): Promise<RomImportResponse> =>
       request("/api/roms/import", RomImportResponseSchema, {
@@ -306,8 +315,37 @@ export const api = {
     },
   },
 
+  agents: {
+    list: (sortBy?: string): Promise<Agent[]> => {
+      const params = sortBy ? `?sort_by=${sortBy}` : ""
+      return request(`/api/agents${params}`, AgentListSchema)
+    },
+
+    get: (id: string): Promise<Agent> => request(`/api/agents/${id}`, AgentSchema),
+
+    create: (data: AgentCreateInput): Promise<Agent> => {
+      const validated = AgentCreateSchema.parse(data)
+      return request("/api/agents", AgentSchema, {
+        method: "POST",
+        body: JSON.stringify(validated),
+      })
+    },
+
+    update: (id: string, data: AgentUpdate): Promise<Agent> =>
+      request(`/api/agents/${id}`, AgentSchema, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+
+    delete: (id: string): Promise<void> =>
+      requestVoid(`/api/agents/${id}`, { method: "DELETE" }),
+  },
+
   runs: {
-    list: (): Promise<Run[]> => request("/api/runs", RunListSchema),
+    list: (agentId?: string): Promise<Run[]> => {
+      const params = agentId ? `?agent_id=${agentId}` : ""
+      return request(`/api/runs${params}`, RunListSchema)
+    },
 
     get: (id: string): Promise<Run> => request(`/api/runs/${id}`, RunSchema),
 
@@ -337,6 +375,9 @@ export const api = {
 
     metrics: (id: string): Promise<RunMetrics[]> =>
       request(`/api/runs/${id}/metrics`, z.array(RunMetricsSchema)),
+
+    recordings: (id: string): Promise<Recording[]> =>
+      request(`/api/runs/${id}/recordings`, z.array(RecordingSchema)),
   },
 
   emulators: {
@@ -419,126 +460,26 @@ export const api = {
     },
   },
 
-  builder: {
-    start: (romId: string) =>
-      request("/api/builder/start", z.object({
-        game_name: z.string(),
-        system: z.string(),
-        rom_name: z.string(),
-        buttons: z.array(z.string().nullable()),
-      }), { method: "POST", body: JSON.stringify({ rom_id: romId }) }),
-
-    close: () =>
-      requestVoid("/api/builder/close", { method: "POST" }),
+  integration: {
+    launch: (opts?: { romId?: string; connectorId?: string }) =>
+      request("/api/integration/launch", z.object({
+        status: z.string(),
+        pid: z.number().optional(),
+        message: z.string().optional(),
+      }), { method: "POST", body: JSON.stringify({ rom_id: opts?.romId, connector_id: opts?.connectorId }) }),
 
     status: () =>
-      request("/api/builder/status", z.object({
-        active: z.boolean(),
-        game_name: z.string(),
-        system: z.string(),
-        rom_name: z.string(),
-        frame: z.number(),
-        watches: z.record(z.string(), z.object({ address: z.number(), type: z.string() })),
-        rewards: z.number(),
-        done_conditions: z.number(),
-        states: z.array(z.string()),
+      request("/api/integration/status", z.object({
+        running: z.boolean(),
+        pid: z.number().optional(),
+        exit_code: z.number().optional(),
       })),
 
-    step: (frames: number = 1, action?: number[]) =>
-      request("/api/builder/step", z.object({
-        frame: z.number(),
-        reward: z.number(),
-        done: z.boolean(),
-      }), {
-        method: "POST",
-        body: JSON.stringify({ frames, action }),
-      }),
+    stop: () =>
+      requestVoid("/api/integration/stop", { method: "POST" }),
 
-    screen: () =>
-      request("/api/builder/screen", z.object({
-        image: z.string(),
-        width: z.number(),
-        height: z.number(),
-      })),
-
-    search: (name: string, value: number) =>
-      request("/api/builder/search", z.object({
-        name: z.string(),
-        num_results: z.number(),
-        unique: z.any().nullable(),
-        results: z.array(z.any()),
-      }), { method: "POST", body: JSON.stringify({ name, value }) }),
-
-    deltaSearch: (name: string, op: string, ref: number) =>
-      request("/api/builder/delta-search", z.object({
-        name: z.string(),
-        num_results: z.number(),
-        unique: z.any().nullable(),
-        results: z.array(z.any()),
-      }), { method: "POST", body: JSON.stringify({ name, op, ref }) }),
-
-    getSearch: (name: string) =>
-      request(`/api/builder/searches/${name}`, z.object({
-        name: z.string(),
-        num_results: z.number(),
-        unique: z.any().nullable(),
-        results: z.array(z.any()),
-      })),
-
-    removeSearch: (name: string) =>
-      requestVoid(`/api/builder/searches/${name}`, { method: "DELETE" }),
-
-    addWatch: (name: string, address: number, type: string) =>
-      request("/api/builder/watches", z.object({
-        message: z.string(),
-        name: z.string(),
-      }), { method: "POST", body: JSON.stringify({ name, address, type }) }),
-
-    readWatches: () =>
-      request("/api/builder/watches", z.record(z.string(), z.number().nullable())),
-
-    removeWatch: (name: string) =>
-      requestVoid(`/api/builder/watches/${name}`, { method: "DELETE" }),
-
-    addReward: (variable: string, operation: string, reference: number, multiplier: number) =>
-      request("/api/builder/rewards", z.object({
-        index: z.number(),
-        message: z.string(),
-      }), { method: "POST", body: JSON.stringify({ variable, operation, reference, multiplier }) }),
-
-    addDoneCondition: (variable: string, operation: string, reference: number) =>
-      request("/api/builder/done-conditions", z.object({
-        index: z.number(),
-        message: z.string(),
-      }), { method: "POST", body: JSON.stringify({ variable, operation, reference }) }),
-
-    saveState: (name: string) =>
-      request("/api/builder/states/save", z.object({
-        name: z.string(),
-        size: z.number(),
-      }), { method: "POST", body: JSON.stringify({ name }) }),
-
-    loadState: (name: string) =>
-      request("/api/builder/states/load", z.object({
-        name: z.string(),
-        frame: z.number(),
-      }), { method: "POST", body: JSON.stringify({ name }) }),
-
-    listStates: () =>
-      request("/api/builder/states", z.array(z.object({
-        name: z.string(),
-        size: z.number(),
-      }))),
-
-    export: (connectorName?: string) =>
-      request("/api/builder/export", z.object({
-        connector_id: z.string(),
-        game_path: z.string(),
-        states: z.array(z.string()),
-        watches: z.number(),
-        rewards: z.number(),
-        done_conditions: z.number(),
-      }), { method: "POST", body: JSON.stringify({ connector_name: connectorName }) }),
+    rescan: () =>
+      requestVoid("/api/integration/rescan", { method: "POST" }),
   },
 }
 
@@ -549,12 +490,42 @@ export const api = {
 export interface FrameInfo {
   width: number
   height: number
+  /** Pixels for the first env (backward compat) */
   pixels: Uint8Array
+  /** Number of envs in this frame message */
+  envCount: number
+  /** Per-env pixel arrays */
+  envFrames: Uint8Array[]
+}
+
+/** Mutable frame buffer for zero-allocation rendering. Written by WS handler, read by rAF loops. */
+export interface FrameBuffer {
+  width: number
+  height: number
+  envCount: number
+  /** Stable per-env pixel buffers — data is copied in, not replaced */
+  envFrames: Uint8Array[]
+  /** Incremented each WS frame — canvases compare to detect new data */
+  generation: number
+  // ── Ring buffer for all-env playback ──
+  /** Circular buffer of all-env frame snapshots (lazily allocated per slot) */
+  ring: (Uint8Array | undefined)[]
+  /** Next write position in ring (0..ringCapacity-1) */
+  ringHead: number
+  /** Number of valid frames currently in the ring (0..ringCapacity) */
+  ringSize: number
+  /** Maximum frames the ring can hold */
+  ringCapacity: number
+  /** Monotonically increasing counter — total frames ever pushed to ring */
+  ringGeneration: number
 }
 
 export interface RunWebSocketCallbacks {
   onMetrics?: (metrics: RunMetrics) => void
   onFrame?: (frame: FrameInfo) => void
+  /** Mutable frame buffer — WS handler writes directly, no React state */
+  frameBuffer?: FrameBuffer
+  onPhase?: (phase: string, timestamp: number) => void
   onStatus?: (status: RunStatus) => void
   onError?: (error: string) => void
   onConnectionError?: (event: Event) => void
@@ -569,35 +540,79 @@ export function createRunWebSocket(
 
   ws.onmessage = (event) => {
     try {
-      // Binary message = raw RGB frame (4-byte header + pixel data)
+      // Binary message = multi-env RGB frames
+      // Protocol: [n_envs:u8][width:u16LE][height:u16LE][env0_pixels][env1_pixels]...
       if (event.data instanceof ArrayBuffer) {
         const buf = event.data as ArrayBuffer
-        if (buf.byteLength < 4) return
+        if (buf.byteLength < 5) return
         const view = new DataView(buf)
-        const w = view.getUint16(0, true)
-        const h = view.getUint16(2, true)
-        if (buf.byteLength < 4 + w * h * 3) return
+        const nEnvs = view.getUint8(0)
+        const w = view.getUint16(1, true)
+        const h = view.getUint16(3, true)
+        const frameSize = w * h * 3
+        if (nEnvs < 1 || nEnvs > 64 || buf.byteLength < 5 + nEnvs * frameSize) return
+
+        // Fast path: write into mutable FrameBuffer (no React state, no allocation)
+        const fb = callbacks.frameBuffer
+        if (fb) {
+          fb.width = w
+          fb.height = h
+          fb.envCount = nEnvs
+          // Resize env buffers only when dimensions or count change
+          if (fb.envFrames.length !== nEnvs || fb.envFrames[0]?.length !== frameSize) {
+            fb.envFrames = Array.from({ length: nEnvs }, () => new Uint8Array(frameSize))
+          }
+          // Copy pixel data into stable buffers (avoids creating new typed array views)
+          const src = new Uint8Array(buf)
+          for (let i = 0; i < nEnvs; i++) {
+            fb.envFrames[i].set(src.subarray(5 + i * frameSize, 5 + (i + 1) * frameSize))
+          }
+          fb.generation++
+
+          // Push ALL envs into ring buffer for playback (scrubbing works for every env)
+          if (fb.ringCapacity > 0 && nEnvs > 0) {
+            const totalSize = nEnvs * frameSize
+            const slot = fb.ring[fb.ringHead]
+            if (!slot || slot.length !== totalSize) {
+              fb.ring[fb.ringHead] = new Uint8Array(totalSize)
+            }
+            const dst = fb.ring[fb.ringHead]!
+            for (let i = 0; i < nEnvs; i++) {
+              dst.set(fb.envFrames[i], i * frameSize)
+            }
+            fb.ringHead = (fb.ringHead + 1) % fb.ringCapacity
+            if (fb.ringSize < fb.ringCapacity) fb.ringSize++
+            fb.ringGeneration++
+          }
+
+          return
+        }
+
+        // Fallback: callback-based (legacy path)
+        const envFrames: Uint8Array[] = []
+        for (let i = 0; i < nEnvs; i++) {
+          envFrames.push(new Uint8Array(buf, 5 + i * frameSize, frameSize))
+        }
         callbacks.onFrame?.({
           width: w,
           height: h,
-          pixels: new Uint8Array(buf, 4, w * h * 3),
+          pixels: envFrames[0],
+          envCount: nEnvs,
+          envFrames,
         })
         return
       }
 
-      // Text message = JSON (metrics, status, error)
+      // Text message = JSON (metrics, status, phase, error)
       const data = JSON.parse(event.data)
 
-      // Handle metrics message (has step field)
       if ("step" in data) {
         callbacks.onMetrics?.(data)
-      }
-      // Handle status message
-      else if (data.type === "status") {
+      } else if (data.type === "phase") {
+        callbacks.onPhase?.(data.phase, data.timestamp)
+      } else if (data.type === "status") {
         callbacks.onStatus?.(data.status)
-      }
-      // Handle error message
-      else if (data.type === "error") {
+      } else if (data.type === "error") {
         callbacks.onError?.(data.error)
       }
     } catch {
@@ -624,6 +639,10 @@ export type {
   RunCreate,
   RunMetrics,
   RunStatus,
+  Recording,
+  Agent,
+  AgentCreateInput,
+  AgentUpdate,
   Config,
   ConfigUpdate,
   RomImportResponse,

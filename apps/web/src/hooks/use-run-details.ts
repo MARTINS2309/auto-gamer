@@ -8,9 +8,10 @@ export function useRunDetails(runId: string) {
         metrics: liveMetrics,
         history,
         isConnected,
-        frame,
+        frameBufferRef,
         episodeCount,
         metricsLoaded,
+        phase,
     } = useRunMetrics(runId, isRunning)
 
     const currentMetrics: RunMetrics = liveMetrics || {
@@ -31,8 +32,9 @@ export function useRunDetails(runId: string) {
         history,
         isRunning,
         isConnected,
-        frame,
+        frameBufferRef,
         episodeCount,
         metricsLoaded,
+        phase,
     }
 }

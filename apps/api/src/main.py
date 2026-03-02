@@ -12,10 +12,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .routers import (
+    agents,
     config,
-    connector_builder,
     emulators,
     filesystem,
+    integration,
     metadata,
     play,
     roms,
@@ -94,6 +95,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 app.mount("/files", StaticFiles(directory=DATA_DIR), name="files")
 
 # Routers
+app.include_router(agents.router, prefix="/api", tags=["agents"])
 app.include_router(runs.router, prefix="/api", tags=["runs"])
 app.include_router(roms.router, prefix="/api", tags=["roms"])
 app.include_router(emulators.router, prefix="/api", tags=["emulators"])
@@ -102,7 +104,7 @@ app.include_router(thumbnails.router, prefix="/api", tags=["thumbnails"])
 app.include_router(metadata.router, prefix="/api", tags=["metadata"])
 app.include_router(play.router, prefix="/api", tags=["play"])
 app.include_router(filesystem.router, prefix="/api", tags=["filesystem"])
-app.include_router(connector_builder.router, prefix="/api", tags=["connector-builder"])
+app.include_router(integration.router, prefix="/api", tags=["integration"])
 app.include_router(ws.router, tags=["ws"])
 
 

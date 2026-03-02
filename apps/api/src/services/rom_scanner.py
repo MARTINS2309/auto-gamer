@@ -151,7 +151,7 @@ class RomScanner:
                 "id": game,
                 "name": game,
                 "system": self._get_system_from_id(game),
-                "states": sorted(states) if states else [],
+                "states": [{"name": s, "multiplayer": False} for s in sorted(states)] if states else [],
             }
         except Exception as e:
             print(f"Error getting game details: {e}")
@@ -292,7 +292,7 @@ class RomScanner:
                         "display_name": self._format_display_name(game),
                         "system": system,
                         "sha1_hash": sha1_hash,
-                        "states": sorted(states) if states else [],
+                        "states": [{"name": s, "multiplayer": False} for s in sorted(states)] if states else [],
                         "has_rom": has_rom,
                     }
                 )

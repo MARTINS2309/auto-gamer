@@ -1,11 +1,11 @@
 import { createRouter, createRootRoute, createRoute, Outlet } from "@tanstack/react-router"
 import { RootLayout } from "./components/root-layout"
 import { DashboardPage } from "./pages/dashboard"
+import { AgentsPage } from "./pages/agents"
 import { RomsPage } from "./pages/roms"
 import { RunsPage } from "./pages/runs"
 import { RunDetailPage } from "./pages/run-detail"
 import { ConfigPage } from "./pages/config"
-import ConnectorBuilderPage from "./pages/connector-builder"
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -19,6 +19,12 @@ const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: DashboardPage,
+})
+
+const agentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/agents",
+  component: AgentsPage,
 })
 
 const romsRoute = createRoute({
@@ -45,22 +51,13 @@ const configRoute = createRoute({
   component: ConfigPage,
 })
 
-const connectorBuilderRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/connector-builder",
-  component: ConnectorBuilderPage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    rom: (search.rom as string) || undefined,
-  }),
-})
-
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
+  agentsRoute,
   romsRoute,
   runsRoute,
   runDetailRoute,
   configRoute,
-  connectorBuilderRoute,
 ])
 
 export const router = createRouter({ routeTree })

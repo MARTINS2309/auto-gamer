@@ -62,7 +62,24 @@
       "Bash(.venv/bin/pip install:*)",
       "Bash(find:*)",
       "Bash(apps/api/.venv/bin/ruff check:*)",
-      "Bash(pnpm lint:web:*)"
+      "Bash(pnpm lint:web:*)",
+      "WebFetch(domain:stable-baselines3.readthedocs.io)",
+      "WebFetch(domain:sb3-contrib.readthedocs.io)",
+      "Bash(xargs cat:*)",
+      "Bash(sqlite3:*)",
+      "Bash(apps/api/.venv/bin/python:*)",
+      "Bash(dpkg:*)",
+      "Bash(pkg-config:*)",
+      "Bash(pnpm knip:*)",
+      "Bash(.venv/bin/vulture:*)",
+      "Bash(/home/martins/code/auto-gamer/packages/stable-retro/build/gym-retro-integration)",
+      "Bash(QT_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/qt5/plugins QT_DEBUG_PLUGINS=1 /home/martins/code/auto-gamer/packages/stable-retro/build/gym-retro-integration:*)",
+      "Bash(pgrep:*)",
+      "Bash(apps/api/.venv/bin/python3:*)",
+      "Bash(.venv/bin/python3:*)",
+      "Bash(for f in /home/martins/code/auto-gamer/packages/stable-retro/build/stable_retro/cores/*.json)",
+      "Bash(do python3 -c \"import json; d=json.load\\(open\\(''$f''\\)\\); [print\\(k, v.get\\(''ext'',[]\\)\\) for k,v in d.items\\(\\)]\")",
+      "Bash(done)"
     ]
   }
 }

@@ -44,7 +44,7 @@ module = [
     "src.services.play_manager",
     "src.services.rom_sync",
     "src.services.run_manager",
-    "src.services.connector_builder",
-    "src.routers.connector_builder",
+    "src.services.integration_launcher",
+    "src.routers.integration",
 ]
 disable_error_code = ["arg-type", "assignment", "call-arg", "call-overload", "union-attr", "valid-type", "misc", "attr-defined"]

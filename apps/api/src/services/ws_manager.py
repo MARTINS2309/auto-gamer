@@ -1,4 +1,9 @@
+import asyncio
+
 from fastapi import WebSocket
+
+# Timeout for individual WebSocket sends — drop message to slow clients
+_SEND_TIMEOUT = 0.5  # seconds
 
 
 class ConnectionManager:
@@ -20,35 +25,43 @@ class ConnectionManager:
                 del self.active_connections[run_id]
 
     async def broadcast(self, run_id: str, message: dict):
-        if run_id in self.active_connections:
-            # Iterate over a copy to allow modification during iteration if we needed to remove
-            # But disconnect() modifies the list, so we must be careful.
-            # safe_connections = self.active_connections[run_id][:]
+        if run_id not in self.active_connections:
+            return
 
-            # Identify dead connections
-            dead_connections = []
+        dead_connections = []
 
-            for connection in self.active_connections[run_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception as e:
-                    print(f"Error broadcasting to {run_id}: {e}")
-                    dead_connections.append(connection)
+        for connection in self.active_connections[run_id]:
+            try:
+                await asyncio.wait_for(
+                    connection.send_json(message), timeout=_SEND_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                print(f"[WS] Send timeout for {run_id}, dropping client")
+                dead_connections.append(connection)
+            except Exception as e:
+                print(f"[WS] Error broadcasting to {run_id}: {e}")
+                dead_connections.append(connection)
 
-            # Clean up
-            for dead in dead_connections:
-                self.disconnect(run_id, dead)
+        for dead in dead_connections:
+            self.disconnect(run_id, dead)
 
     async def broadcast_bytes(self, run_id: str, data: bytes):
         """Send binary data to all connected WebSocket clients for a session."""
         if run_id not in self.active_connections:
             return
+
         dead_connections = []
         for connection in self.active_connections[run_id]:
             try:
-                await connection.send_bytes(data)
+                await asyncio.wait_for(
+                    connection.send_bytes(data), timeout=_SEND_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                print(f"[WS] Binary send timeout for {run_id}, dropping client")
+                dead_connections.append(connection)
             except Exception:
                 dead_connections.append(connection)
+
         for dead in dead_connections:
             self.disconnect(run_id, dead)
 

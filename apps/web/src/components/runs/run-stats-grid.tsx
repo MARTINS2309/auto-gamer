@@ -2,6 +2,7 @@ import { Zap, Trophy, TrendingUp, Activity, Clock, BarChart3 } from "lucide-reac
 import { formatDuration, intervalToDuration } from "date-fns"
 import { StatTile } from "@/components/shared"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 import type { Run, RunMetrics } from "@/lib/schemas"
 
 interface RunStatsGridProps {
@@ -9,6 +10,8 @@ interface RunStatsGridProps {
     metrics: RunMetrics
     episodeCount?: number
     isLoading?: boolean
+    phase?: string | null
+    history?: RunMetrics[]
 }
 
 function StatTileSkeleton() {
@@ -23,7 +26,7 @@ function StatTileSkeleton() {
     )
 }
 
-export function RunStatsGrid({ run, metrics, episodeCount, isLoading }: RunStatsGridProps) {
+export function RunStatsGrid({ run, metrics, episodeCount, isLoading, phase, history }: RunStatsGridProps) {
     if (isLoading) {
         return (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-0 border bg-background">
@@ -40,6 +43,30 @@ export function RunStatsGrid({ run, metrics, episodeCount, isLoading }: RunStats
             end: run.completed_at ? new Date(run.completed_at) : new Date(),
         })
         : null
+
+    // Use rollout FPS when available (excludes training time), fall back to wall FPS
+    const displayFps = metrics.rollout_fps ?? metrics.fps ?? 0
+
+    // Episode throughput: ep/min from recent 5-minute window
+    let epPerMin: string | undefined
+    if (history && history.length > 1 && run.status === "running") {
+        const now = history[history.length - 1].timestamp
+        const windowStart = now - 300 // 5 minutes
+        const recentEpisodes = history.filter(m => m.type === "episode" && m.timestamp >= windowStart)
+        if (recentEpisodes.length >= 2) {
+            const dt = now - recentEpisodes[0].timestamp
+            if (dt > 0) {
+                epPerMin = `~${(recentEpisodes.length / (dt / 60)).toFixed(1)} ep/min`
+            }
+        }
+    }
+
+    // Phase time breakdown: percentage of time spent in rollout vs training
+    const rolloutTime = metrics.cumulative_rollout_time
+    const trainingTime = metrics.cumulative_training_time
+    const phaseBreakdown = rolloutTime != null && trainingTime != null && (rolloutTime + trainingTime) > 0
+        ? `${Math.round((rolloutTime / (rolloutTime + trainingTime)) * 100)}% rollout`
+        : undefined
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-0 border bg-background">
@@ -60,8 +87,21 @@ export function RunStatsGrid({ run, metrics, episodeCount, isLoading }: RunStats
                 icon={TrendingUp}
             />
             <StatTile
-                label="FPS"
-                value={(metrics.fps ?? 0).toFixed(1)}
+                label={
+                    <span className="flex items-center gap-1.5">
+                        {metrics.rollout_fps != null ? "Rollout FPS" : "FPS"}
+                        {phase && run.status === "running" && (
+                            <Badge
+                                variant={phase === "rollout" ? "default" : "secondary"}
+                                className="text-[10px] px-1 py-0 h-4 font-normal"
+                            >
+                                {phase === "rollout" ? "Collecting" : "Training"}
+                            </Badge>
+                        )}
+                    </span>
+                }
+                value={displayFps.toFixed(0)}
+                subValue={phaseBreakdown}
                 icon={Activity}
             />
             <StatTile
@@ -72,6 +112,7 @@ export function RunStatsGrid({ run, metrics, episodeCount, isLoading }: RunStats
             <StatTile
                 label="Episodes"
                 value={episodeCount != null ? episodeCount.toLocaleString() : "--"}
+                subValue={epPerMin}
                 icon={BarChart3}
             />
         </div>

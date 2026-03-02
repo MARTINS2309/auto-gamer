@@ -4,6 +4,46 @@
  */
 
 export interface paths {
+    "/api/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agents
+         * @description List all agents, sorted by best_reward descending (for leaderboard).
+         */
+        get: operations["list_agents_api_agents_get"];
+        put?: never;
+        /** Create Agent */
+        post: operations["create_agent_api_agents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agents/{agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent */
+        get: operations["get_agent_api_agents__agent_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Agent */
+        delete: operations["delete_agent_api_agents__agent_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Agent */
+        patch: operations["update_agent_api_agents__agent_id__patch"];
+        trace?: never;
+    };
     "/api/runs": {
         parameters: {
             query?: never;
@@ -121,7 +161,10 @@ export interface paths {
         };
         /**
          * List Run Recordings
-         * @description List BK2 recording files for a run.
+         * @description List BK2 recording files for a run, enriched with episode rewards when available.
+         *
+         *     Args:
+         *         sort: Sort order — "reward" (best first, default) or "time" (newest first)
          */
         get: operations["list_run_recordings_api_runs__run_id__recordings_get"];
         put?: never;
@@ -993,7 +1036,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/builder/start": {
+    "/api/integration/launch": {
         parameters: {
             query?: never;
             header?: never;
@@ -1003,37 +1046,21 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start Session
-         * @description Start a new connector builder session for a ROM.
+         * Launch Integration
+         * @description Launch the native gym-retro-integration tool.
+         *
+         *     - connector_id: opens the existing integration (edit mode)
+         *     - rom_id: opens with the ROM file (new connector mode)
+         *     - neither: opens the tool empty
          */
-        post: operations["start_session_api_builder_start_post"];
+        post: operations["launch_integration_api_integration_launch_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/builder/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Close Session
-         * @description Close the active builder session.
-         */
-        post: operations["close_session_api_builder_close_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/status": {
+    "/api/integration/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -1041,10 +1068,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Status
-         * @description Get info about the active builder session.
+         * Integration Status
+         * @description Check if the integration tool is running.
          */
-        get: operations["get_status_api_builder_status_get"];
+        get: operations["integration_status_api_integration_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1053,7 +1080,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/builder/step": {
+    "/api/integration/stop": {
         parameters: {
             query?: never;
             header?: never;
@@ -1063,37 +1090,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Step Emulator
-         * @description Step the emulator N frames with optional action.
+         * Stop Integration
+         * @description Stop the integration tool.
          */
-        post: operations["step_emulator_api_builder_step_post"];
+        post: operations["stop_integration_api_integration_stop_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/builder/screen": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Screen
-         * @description Get current frame as base64 JPEG.
-         */
-        get: operations["get_screen_api_builder_screen_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/search": {
+    "/api/integration/rescan": {
         parameters: {
             query?: never;
             header?: never;
@@ -1103,218 +1110,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Search Memory
-         * @description Start or refine an exact-value search.
+         * Rescan Integrations
+         * @description Rescan connectors after the integration tool has been used.
          */
-        post: operations["search_memory_api_builder_search_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/delta-search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Delta Search Memory
-         * @description Delta search (increased/decreased/unchanged).
-         */
-        post: operations["delta_search_memory_api_builder_delta_search_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/searches/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Search Results
-         * @description Get search results for a named search.
-         */
-        get: operations["get_search_results_api_builder_searches__name__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Remove Search
-         * @description Remove a named search.
-         */
-        delete: operations["remove_search_api_builder_searches__name__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/watches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Watches
-         * @description Read all watch values.
-         */
-        get: operations["read_watches_api_builder_watches_get"];
-        put?: never;
-        /**
-         * Add Watch
-         * @description Add a named memory watch.
-         */
-        post: operations["add_watch_api_builder_watches_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/watches/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove Watch
-         * @description Remove a named watch.
-         */
-        delete: operations["remove_watch_api_builder_watches__name__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/rewards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Add Reward
-         * @description Add a reward signal.
-         */
-        post: operations["add_reward_api_builder_rewards_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/done-conditions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Add Done Condition
-         * @description Add a done condition.
-         */
-        post: operations["add_done_condition_api_builder_done_conditions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/states/save": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Save State
-         * @description Save emulator state.
-         */
-        post: operations["save_state_api_builder_states_save_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/states/load": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Load State
-         * @description Load emulator state.
-         */
-        post: operations["load_state_api_builder_states_load_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/states": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List States
-         * @description List saved states.
-         */
-        get: operations["list_states_api_builder_states_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/builder/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Export Connector
-         * @description Export connector + register in DB.
-         */
-        post: operations["export_connector_api_builder_export_post"];
+        post: operations["rescan_integrations_api_integration_rescan_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1347,11 +1146,80 @@ export interface components {
          * @enum {string}
          */
         ActionSpace: "filtered" | "discrete" | "multi_binary";
+        /** AgentCreate */
+        AgentCreate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** @default PPO */
+            algorithm: components["schemas"]["Algorithm"];
+            /** Game Id */
+            game_id: string;
+            hyperparams?: components["schemas"]["RunHyperparams"];
+            /** @default image */
+            observation_type: components["schemas"]["ObservationType"];
+            /** @default filtered */
+            action_space: components["schemas"]["ActionSpace"];
+        };
+        /** AgentResponse */
+        AgentResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            algorithm: components["schemas"]["Algorithm"];
+            /** Game Id */
+            game_id: string;
+            /** Game Name */
+            game_name?: string | null;
+            /** Hyperparams */
+            hyperparams?: {
+                [key: string]: unknown;
+            } | null;
+            observation_type: components["schemas"]["ObservationType"];
+            action_space: components["schemas"]["ActionSpace"];
+            /**
+             * Total Steps
+             * @default 0
+             */
+            total_steps: number;
+            /**
+             * Total Runs
+             * @default 0
+             */
+            total_runs: number;
+            /** Best Reward */
+            best_reward?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * AgentUpdate
+         * @description Only name, description, and hyperparams can be updated. Algorithm/obs/action are immutable.
+         */
+        AgentUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            hyperparams?: components["schemas"]["RunHyperparams"] | null;
+        };
         /**
          * Algorithm
          * @enum {string}
          */
-        Algorithm: "PPO" | "A2C" | "DQN";
+        Algorithm: "PPO" | "A2C" | "DQN" | "SAC" | "TD3" | "DDPG";
         /**
          * ControllerConfig
          * @description Controller/gamepad configuration.
@@ -1430,15 +1298,6 @@ export interface components {
              */
             z_button: number;
         };
-        /** DeltaSearchRequest */
-        DeltaSearchRequest: {
-            /** Name */
-            name: string;
-            /** Op */
-            op: string;
-            /** Ref */
-            ref: number;
-        };
         /**
          * Device
          * @enum {string}
@@ -1469,20 +1328,6 @@ export interface components {
             parent: string | null;
             /** Entries */
             entries: components["schemas"]["DirectoryEntry"][];
-        };
-        /** DoneConditionRequest */
-        DoneConditionRequest: {
-            /** Variable */
-            variable: string;
-            /** Operation */
-            operation: string;
-            /** Reference */
-            reference: number;
-        };
-        /** ExportRequest */
-        ExportRequest: {
-            /** Connector Name */
-            connector_name?: string | null;
         };
         /**
          * GameListItem
@@ -1949,10 +1794,12 @@ export interface components {
              */
             z_btn: string | null;
         };
-        /** LoadStateRequest */
-        LoadStateRequest: {
-            /** Name */
-            name: string;
+        /** LaunchRequest */
+        LaunchRequest: {
+            /** Rom Id */
+            rom_id?: string | null;
+            /** Connector Id */
+            connector_id?: string | null;
         };
         /** MetricPoint */
         MetricPoint: {
@@ -2020,23 +1867,6 @@ export interface components {
             /** Libretro Name */
             libretro_name?: string | null;
         };
-        /** RewardRequest */
-        RewardRequest: {
-            /** Variable */
-            variable: string;
-            /** Operation */
-            operation: string;
-            /**
-             * Reference
-             * @default 0
-             */
-            reference: number;
-            /**
-             * Multiplier
-             * @default 1
-             */
-            multiplier: number;
-        };
         /**
          * RewardShaping
          * @enum {string}
@@ -2072,16 +1902,20 @@ export interface components {
              */
             checkpoint_interval: number;
             /**
-             * Frame Capture Interval
-             * @default 10000
+             * Frame Fps
+             * @default 15
              */
-            frame_capture_interval: number;
+            frame_fps: number;
             /** @default default */
             reward_shaping: components["schemas"]["RewardShaping"];
             /** @default image */
             observation_type: components["schemas"]["ObservationType"];
             /** @default filtered */
             action_space: components["schemas"]["ActionSpace"];
+            /** Agent Id */
+            agent_id: string;
+            /** Opponent Agent Id */
+            opponent_agent_id?: string | null;
         };
         /**
          * RunHyperparams
@@ -2164,16 +1998,20 @@ export interface components {
              */
             checkpoint_interval: number;
             /**
-             * Frame Capture Interval
-             * @default 10000
+             * Frame Fps
+             * @default 15
              */
-            frame_capture_interval: number;
+            frame_fps: number;
             /** @default default */
             reward_shaping: components["schemas"]["RewardShaping"];
             /** @default image */
             observation_type: components["schemas"]["ObservationType"];
             /** @default filtered */
             action_space: components["schemas"]["ActionSpace"];
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Opponent Agent Id */
+            opponent_agent_id?: string | null;
             /** Id */
             id: string;
             status: components["schemas"]["RunStatus"];
@@ -2190,6 +2028,20 @@ export interface components {
             pid?: number | null;
             /** Error */
             error?: string | null;
+            /** Agent Name */
+            agent_name?: string | null;
+            /** Opponent Agent Name */
+            opponent_agent_name?: string | null;
+            /** Game Name */
+            game_name?: string | null;
+            /** Game Thumbnail Url */
+            game_thumbnail_url?: string | null;
+            /** Latest Step */
+            latest_step?: number | null;
+            /** Best Reward */
+            best_reward?: number | null;
+            /** Avg Reward */
+            avg_reward?: number | null;
         };
         /**
          * RunStatus
@@ -2202,18 +2054,6 @@ export interface components {
          */
         RunUpdate: {
             hyperparams?: components["schemas"]["RunHyperparams"] | null;
-        };
-        /** SaveStateRequest */
-        SaveStateRequest: {
-            /** Name */
-            name: string;
-        };
-        /** SearchRequest */
-        SearchRequest: {
-            /** Name */
-            name: string;
-            /** Value */
-            value: number;
         };
         /**
          * SessionInfoResponse
@@ -2230,21 +2070,6 @@ export interface components {
             started_at: string;
             /** Is Alive */
             is_alive: boolean;
-        };
-        /** StartRequest */
-        StartRequest: {
-            /** Rom Id */
-            rom_id: string;
-        };
-        /** StepRequest */
-        StepRequest: {
-            /**
-             * Frames
-             * @default 1
-             */
-            frames: number;
-            /** Action */
-            action?: number[] | null;
         };
         /**
          * SyncStatusResponse
@@ -2360,15 +2185,6 @@ export interface components {
             /** Error Type */
             type: string;
         };
-        /** WatchRequest */
-        WatchRequest: {
-            /** Name */
-            name: string;
-            /** Address */
-            address: number;
-            /** Type */
-            type: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -2378,10 +2194,171 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_agents_api_agents_get: {
+        parameters: {
+            query?: {
+                sort_by?: string;
+                game_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_agent_api_agents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_api_agents__agent_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_agent_api_agents__agent_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_agent_api_agents__agent_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_runs_api_runs_get: {
         parameters: {
             query?: {
                 status?: string;
+                agent_id?: string;
                 skip?: number;
                 limit?: number;
             };
@@ -2637,7 +2614,9 @@ export interface operations {
     };
     list_run_recordings_api_runs__run_id__recordings_get: {
         parameters: {
-            query?: never;
+            query?: {
+                sort?: string;
+            };
             header?: never;
             path: {
                 run_id: string;
@@ -3923,16 +3902,16 @@ export interface operations {
             };
         };
     };
-    start_session_api_builder_start_post: {
+    launch_integration_api_integration_launch_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["StartRequest"];
+                "application/json": components["schemas"]["LaunchRequest"];
             };
         };
         responses: {
@@ -3956,7 +3935,7 @@ export interface operations {
             };
         };
     };
-    close_session_api_builder_close_post: {
+    integration_status_api_integration_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3976,7 +3955,7 @@ export interface operations {
             };
         };
     };
-    get_status_api_builder_status_get: {
+    stop_integration_api_integration_stop_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3996,40 +3975,7 @@ export interface operations {
             };
         };
     };
-    step_emulator_api_builder_step_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StepRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_screen_api_builder_screen_get: {
+    rescan_integrations_api_integration_rescan_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4045,403 +3991,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    search_memory_api_builder_search_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delta_search_memory_api_builder_delta_search_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeltaSearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_search_results_api_builder_searches__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_search_api_builder_searches__name__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_watches_api_builder_watches_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    add_watch_api_builder_watches_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WatchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_watch_api_builder_watches__name__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_reward_api_builder_rewards_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RewardRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_done_condition_api_builder_done_conditions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DoneConditionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_state_api_builder_states_save_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveStateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    load_state_api_builder_states_load_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoadStateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_states_api_builder_states_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    export_connector_api_builder_export_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExportRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

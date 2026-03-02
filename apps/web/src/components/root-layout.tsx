@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { LayoutDashboard, Gamepad2, Play, Settings } from "lucide-react"
+import { LayoutDashboard, Gamepad2, Play, Settings, Bot } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ import { ButtonGroup, ButtonGroupSeparator } from "./ui/button-group"
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/agents", label: "Agents", icon: Bot },
   { path: "/roms", label: "ROM Library", icon: Gamepad2 },
   { path: "/runs", label: "Runs", icon: Play },
   { path: "/config", label: "Config", icon: Settings },

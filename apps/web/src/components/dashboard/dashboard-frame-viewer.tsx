@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { MonitorOff } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -20,40 +20,56 @@ export function DashboardFrameViewer({
   algorithm,
   thumbnailUrl,
 }: DashboardFrameViewerProps) {
-  const { metrics, frame } = useRunMetrics(runId, true)
+  const { metrics, frameBufferRef } = useRunMetrics(runId, true)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ctxRef = useRef<WebGLContext | null>(null)
+  const lastGenRef = useRef(0)
+  const rafRef = useRef(0)
+  const [hasFrame, setHasFrame] = useState(false)
+  const hasFrameRef = useRef(false)
 
-  // Init/destroy WebGL context
+  // Init WebGL + rAF render loop — access frameBufferRef.current only inside rAF
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = initWebGL(canvas)
     ctxRef.current = ctx
+
+    function render() {
+      const fb = frameBufferRef.current
+      if (!fb) { rafRef.current = requestAnimationFrame(render); return }
+      const gen = fb.generation
+      if (gen !== lastGenRef.current && fb.envFrames[0]) {
+        lastGenRef.current = gen
+        if (!hasFrameRef.current) { hasFrameRef.current = true; setHasFrame(true) }
+        const glCtx = ctxRef.current
+        if (glCtx && canvas) {
+          const { gl } = glCtx
+          const w = fb.width
+          const h = fb.height
+          if (w > 0 && h > 0) {
+            if (canvas.width !== w || canvas.height !== h) {
+              canvas.width = w
+              canvas.height = h
+              gl.viewport(0, 0, w, h)
+            }
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, w, h, 0, gl.RGB, gl.UNSIGNED_BYTE, fb.envFrames[0])
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+          }
+        }
+      }
+      rafRef.current = requestAnimationFrame(render)
+    }
+
+    rafRef.current = requestAnimationFrame(render)
+
     return () => {
+      cancelAnimationFrame(rafRef.current)
       if (ctx) destroyWebGL(ctx)
       ctxRef.current = null
     }
-  }, [])
+  }, [frameBufferRef])
 
-  // Render raw RGB frame
-  useEffect(() => {
-    const ctx = ctxRef.current
-    const canvas = canvasRef.current
-    if (!ctx || !canvas || !frame) return
-
-    const { gl } = ctx
-    if (canvas.width !== frame.width || canvas.height !== frame.height) {
-      canvas.width = frame.width
-      canvas.height = frame.height
-      gl.viewport(0, 0, frame.width, frame.height)
-    }
-
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, frame.width, frame.height, 0, gl.RGB, gl.UNSIGNED_BYTE, frame.pixels)
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-  }, [frame])
-
-  const hasFrame = frame !== null
   const bestReward = metrics?.best_reward ?? 0
   const fps = metrics?.fps ?? 0
 

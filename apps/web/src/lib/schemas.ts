@@ -34,11 +34,17 @@ export const RunStatusSchema = z.enum([
 ])
 export type RunStatus = API["RunStatus"]
 
-export const AlgorithmSchema = z.enum(["PPO", "A2C", "DQN"])
-export type Algorithm = API["Algorithm"]
+export const AlgorithmSchema = z.enum(["PPO", "A2C", "DQN", "SAC", "TD3", "DDPG"])
+export type Algorithm = z.infer<typeof AlgorithmSchema>
 
 export const DeviceSchema = z.enum(["auto", "cuda", "cpu"])
 export type Device = API["Device"]
+
+export const GameStateSchema = z.object({
+  name: z.string(),
+  multiplayer: z.boolean().default(false),
+})
+export type GameState = z.infer<typeof GameStateSchema>
 
 export const ObservationTypeSchema = z.enum(["image", "ram"])
 export type ObservationType = API["ObservationType"]
@@ -294,6 +300,53 @@ export const DQNHyperparamsSchema = z.object({
 })
 export type DQNHyperparams = z.infer<typeof DQNHyperparamsSchema>
 
+export const SACHyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.0003),
+  buffer_size: z.number().int().min(1).default(1_000_000),
+  learning_starts: z.number().int().min(0).default(100),
+  batch_size: z.number().int().min(1).default(256),
+  tau: z.number().min(0).max(1).default(0.005),
+  gamma: z.number().min(0).max(1).default(0.99),
+  train_freq: z.number().int().min(1).default(1),
+  gradient_steps: z.number().int().min(-1).default(1),
+  ent_coef: z.number().min(0).default(0.1),
+  ent_coef_auto: z.boolean().default(true),
+  target_entropy: z.number().default(-1.0),
+  target_entropy_auto: z.boolean().default(true),
+  target_update_interval: z.number().int().min(1).default(1),
+  use_sde: z.boolean().default(false),
+  sde_sample_freq: z.number().int().min(-1).default(-1),
+  use_sde_at_warmup: z.boolean().default(false),
+})
+export type SACHyperparams = z.infer<typeof SACHyperparamsSchema>
+
+export const TD3HyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.001),
+  buffer_size: z.number().int().min(1).default(1_000_000),
+  learning_starts: z.number().int().min(0).default(100),
+  batch_size: z.number().int().min(1).default(256),
+  tau: z.number().min(0).max(1).default(0.005),
+  gamma: z.number().min(0).max(1).default(0.99),
+  train_freq: z.number().int().min(1).default(1),
+  gradient_steps: z.number().int().min(-1).default(1),
+  policy_delay: z.number().int().min(1).default(2),
+  target_policy_noise: z.number().min(0).default(0.2),
+  target_noise_clip: z.number().min(0).default(0.5),
+})
+export type TD3Hyperparams = z.infer<typeof TD3HyperparamsSchema>
+
+export const DDPGHyperparamsSchema = z.object({
+  learning_rate: z.number().positive().default(0.001),
+  buffer_size: z.number().int().min(1).default(1_000_000),
+  learning_starts: z.number().int().min(0).default(100),
+  batch_size: z.number().int().min(1).default(256),
+  tau: z.number().min(0).max(1).default(0.005),
+  gamma: z.number().min(0).max(1).default(0.99),
+  train_freq: z.number().int().min(1).default(1),
+  gradient_steps: z.number().int().min(-1).default(1),
+})
+export type DDPGHyperparams = z.infer<typeof DDPGHyperparamsSchema>
+
 // Legacy compatibility - maps to PPO defaults
 export const RunHyperparamsSchema = z.object({
   learning_rate: z.number().positive().default(0.0003),
@@ -319,7 +372,7 @@ export const RunSchema = z.object({
   n_envs: z.number().int().min(1).max(64),
   max_steps: z.number().int().min(1).max(100_000_000),
   checkpoint_interval: z.number().int().min(1000).max(10_000_000),
-  frame_capture_interval: z.number().int().min(1).max(100_000),
+  frame_fps: z.number().int().min(1).max(60),
   reward_shaping: RewardShapingSchema,
   observation_type: ObservationTypeSchema,
   action_space: ActionSpaceSchema,
@@ -329,8 +382,18 @@ export const RunSchema = z.object({
   completed_at: z.string().nullable().optional(),
   pid: z.number().int().positive().nullable().optional(),
   error: z.string().nullable().optional(),
+  agent_id: z.string().uuid().nullable().optional(),
+  agent_name: z.string().nullable().optional(),
+  opponent_agent_id: z.string().uuid().nullable().optional(),
+  opponent_agent_name: z.string().nullable().optional(),
+  game_name: z.string().nullable().optional(),
+  game_thumbnail_url: z.string().nullable().optional(),
+  // Metrics summary
+  latest_step: z.number().int().nullable().optional(),
+  best_reward: z.number().nullable().optional(),
+  avg_reward: z.number().nullable().optional(),
 })
-export type Run = Assert<z.infer<typeof RunSchema>, Partial<API["RunResponse"]>>
+export type Run = z.infer<typeof RunSchema>
 
 export const RunListSchema = z.array(RunSchema)
 
@@ -384,6 +447,50 @@ export const DEFAULT_DQN_HYPERPARAMS: DQNHyperparams = {
   max_grad_norm: 10.0,
 }
 
+export const DEFAULT_SAC_HYPERPARAMS: SACHyperparams = {
+  learning_rate: 0.0003,
+  buffer_size: 1_000_000,
+  learning_starts: 100,
+  batch_size: 256,
+  tau: 0.005,
+  gamma: 0.99,
+  train_freq: 1,
+  gradient_steps: 1,
+  ent_coef: 0.1,
+  ent_coef_auto: true,
+  target_entropy: -1.0,
+  target_entropy_auto: true,
+  target_update_interval: 1,
+  use_sde: false,
+  sde_sample_freq: -1,
+  use_sde_at_warmup: false,
+}
+
+export const DEFAULT_TD3_HYPERPARAMS: TD3Hyperparams = {
+  learning_rate: 0.001,
+  buffer_size: 1_000_000,
+  learning_starts: 100,
+  batch_size: 256,
+  tau: 0.005,
+  gamma: 0.99,
+  train_freq: 1,
+  gradient_steps: 1,
+  policy_delay: 2,
+  target_policy_noise: 0.2,
+  target_noise_clip: 0.5,
+}
+
+export const DEFAULT_DDPG_HYPERPARAMS: DDPGHyperparams = {
+  learning_rate: 0.001,
+  buffer_size: 1_000_000,
+  learning_starts: 100,
+  batch_size: 256,
+  tau: 0.005,
+  gamma: 0.99,
+  train_freq: 1,
+  gradient_steps: 1,
+}
+
 // Legacy compatibility alias
 export const DEFAULT_HYPERPARAMS = {
   learning_rate: 0.0003,
@@ -407,13 +514,28 @@ export const RunCreateSchema = z.object({
   n_envs: z.number().int().min(1).max(64).default(1),
   max_steps: z.number().int().min(1).max(100_000_000).default(1_000_000),
   checkpoint_interval: z.number().int().min(1000).max(10_000_000).default(50_000),
-  frame_capture_interval: z.number().int().min(1).max(100_000).default(10_000),
+  frame_fps: z.number().int().min(1).max(60).default(15),
   reward_shaping: RewardShapingSchema.default("default"),
   observation_type: ObservationTypeSchema.default("image"),
   action_space: ActionSpaceSchema.default("filtered"),
+  agent_id: z.string().uuid(),
+  opponent_agent_id: z.string().uuid().nullable().optional(),
 })
-export type RunCreate = API["RunCreate"]
+export type RunCreate = z.infer<typeof RunCreateSchema>
 export type RunCreateInput = z.input<typeof RunCreateSchema>
+
+/** Get default hyperparameters for a given algorithm */
+export function getDefaultHyperparams(algorithm: Algorithm): Record<string, unknown> {
+  switch (algorithm) {
+    case "PPO": return { ...DEFAULT_PPO_HYPERPARAMS }
+    case "A2C": return { ...DEFAULT_A2C_HYPERPARAMS }
+    case "DQN": return { ...DEFAULT_DQN_HYPERPARAMS }
+    case "SAC": return { ...DEFAULT_SAC_HYPERPARAMS }
+    case "TD3": return { ...DEFAULT_TD3_HYPERPARAMS }
+    case "DDPG": return { ...DEFAULT_DDPG_HYPERPARAMS }
+    default: return { ...DEFAULT_PPO_HYPERPARAMS }
+  }
+}
 
 export const RunMetricsSchema = z.object({
   step: z.number().int().min(0),
@@ -426,6 +548,11 @@ export const RunMetricsSchema = z.object({
   epsilon: z.number().min(0).max(1).optional().nullable(),
   details: z.record(z.string(), z.any()).optional().nullable(),
   type: z.string().default("metric"),
+  // Phase tracking (on-policy algos: PPO, A2C)
+  rollout_fps: z.number().optional().nullable(),
+  phase: z.string().optional().nullable(),
+  cumulative_rollout_time: z.number().optional().nullable(),
+  cumulative_training_time: z.number().optional().nullable(),
 })
 export type RunMetrics = Assert<z.infer<typeof RunMetricsSchema>, Partial<API["MetricPoint"]>>
 
@@ -434,7 +561,61 @@ export const RunWsMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("status"), status: RunStatusSchema }),
   z.object({ type: z.literal("error"), error: z.string() }),
 ])
+
+export const RecordingSchema = z.object({
+  filename: z.string(),
+  size: z.number(),
+  created_at: z.number(),
+  episode_seq: z.number().nullable(),
+  reward: z.number().nullable(),
+  length: z.number().nullable(),
+  step: z.number().nullable(),
+})
+export type Recording = z.infer<typeof RecordingSchema>
 export type RunWsMessage = z.infer<typeof RunWsMessageSchema>
+
+// =============================================================================
+// Agent Schemas
+// =============================================================================
+
+export const AgentSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  algorithm: AlgorithmSchema,
+  game_id: z.string(),
+  game_name: z.string().nullable().optional(),
+  hyperparams: z.record(z.string(), z.any()).nullable().optional(),
+  observation_type: ObservationTypeSchema,
+  action_space: ActionSpaceSchema,
+  total_steps: z.number().int().default(0),
+  total_runs: z.number().int().default(0),
+  best_reward: z.number().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+})
+export type Agent = z.infer<typeof AgentSchema>
+
+export const AgentListSchema = z.array(AgentSchema)
+
+export const AgentCreateSchema = z.object({
+  name: z.string().min(1, "Agent name is required").max(100),
+  description: z.string().optional(),
+  algorithm: AlgorithmSchema.default("PPO"),
+  game_id: z.string().min(1, "Game is required"),
+  hyperparams: RunHyperparamsSchema.default(DEFAULT_HYPERPARAMS),
+  observation_type: ObservationTypeSchema.default("image"),
+  action_space: ActionSpaceSchema.default("filtered"),
+})
+export type AgentCreate = z.infer<typeof AgentCreateSchema>
+export type AgentCreateInput = z.input<typeof AgentCreateSchema>
+
+export const AgentUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().optional(),
+  hyperparams: RunHyperparamsSchema.optional(),
+})
+export type AgentUpdate = z.infer<typeof AgentUpdateSchema>
 
 // =============================================================================
 // Input Configuration Schemas

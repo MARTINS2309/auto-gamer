@@ -25,7 +25,7 @@ function createRun(overrides: Partial<Run> = {}): Run {
     n_envs: 1,
     max_steps: 1000000,
     checkpoint_interval: 50000,
-    frame_capture_interval: 10000,
+    frame_fps: 15,
     reward_shaping: "default",
     observation_type: "image",
     action_space: "filtered",
