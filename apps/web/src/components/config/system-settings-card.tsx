@@ -127,6 +127,41 @@ export function SystemSettingsCard({ formData, emulators, onChange }: SystemSett
                         initialPath={formData.recording_path || undefined}
                     />
 
+                    <Separator />
+
+                    <div className="space-y-1">
+                        <h4 className="text-sm font-medium">IGDB API</h4>
+                        <p className="text-xs text-muted-foreground">
+                            Optional. Used to fetch game cover art and metadata. Get credentials at{" "}
+                            <a href="https://dev.twitch.tv/console" target="_blank" rel="noopener noreferrer" className="underline text-primary">
+                                dev.twitch.tv/console
+                            </a>
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label>Client ID</Label>
+                            <Input
+                                value={formData.igdb_client_id || ""}
+                                onChange={(e) => onChange("igdb_client_id", e.target.value || null)}
+                                placeholder="Twitch Client ID"
+                                className="font-mono text-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Client Secret</Label>
+                            <Input
+                                type="password"
+                                value={formData.igdb_client_secret || ""}
+                                onChange={(e) => onChange("igdb_client_secret", e.target.value || null)}
+                                placeholder="Twitch Client Secret"
+                                className="font-mono text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    <Separator />
+
                     <div className="pt-2">
                         <Label className="mb-2 block">Installed Cores</Label>
                         <div className="flex flex-wrap gap-2">

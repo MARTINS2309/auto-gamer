@@ -693,6 +693,8 @@ export const ConfigSchema = z.object({
   default_algorithm: AlgorithmSchema,
   default_hyperparams: RunHyperparamsSchema.optional(),
   input: InputConfigSchema.optional(),
+  igdb_client_id: z.string().nullable().optional(),
+  igdb_client_secret: z.string().nullable().optional(),
 })
 export type Config = Assert<z.infer<typeof ConfigSchema>, Partial<API["GlobalConfig-Output"]>>
 

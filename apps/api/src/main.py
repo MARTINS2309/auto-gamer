@@ -8,7 +8,7 @@ import traceback
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .routers import (
@@ -162,6 +162,22 @@ async def shutdown_event():
     await asyncio.to_thread(run_manager.cleanup_all)
 
 
-@app.get("/")
-def root():
-    return {"message": "Retro Runner API"}
+# Serve built frontend in production (single-server mode)
+WEB_DIST = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "web", "dist"
+)
+if not os.environ.get("UVICORN_RELOAD") and os.path.isdir(WEB_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(WEB_DIST, "assets")), name="frontend-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the SPA index.html for all non-API routes."""
+        file_path = os.path.join(WEB_DIST, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(WEB_DIST, "index.html"))
+else:
+
+    @app.get("/")
+    def root():
+        return {"message": "Retro Runner API"}
